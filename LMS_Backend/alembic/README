@@ -1,0 +1,11 @@
+Alembic migrations for the Crescent Foundry LMS (MySQL 8).
+
+* Every schema change goes through a reviewed migration in versions/.
+* Stage A contains no migrations: no business tables exist yet.
+* MySQL DDL is not transactional. Keep each migration small and focused so a
+  failure leaves the schema in a recoverable state.
+* Never run migrations against a shared or production database without explicit
+  approval and a verified backup.
+
+See LMS_Backend/README.md for commands and docs/database/LMS_DATABASE_DESIGN.md
+for conventions.

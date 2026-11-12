@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Brand colours are provisional placeholders until official
+ * Crescent Foundry brand guidelines are supplied.
+ *
+ * Fonts: system fonts only (no external font downloads). The stack covers
+ * Bengali, Devanagari (Hindi) and Gujarati scripts on Windows ("Nirmala UI"),
+ * Android/ChromeOS (Noto) and Apple devices.
+ */
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, 'Segoe UI', 'Nirmala UI', 'Noto Sans', 'Noto Sans Bengali',
+    'Noto Sans Devanagari', 'Noto Sans Gujarati', 'Kohinoor Bangla', 'Kohinoor Devanagari',
+    'Kohinoor Gujarati', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-brand-50: #eef4fb;
+  --color-brand-100: #d7e4f4;
+  --color-brand-200: #b0c9e8;
+  --color-brand-300: #7fa6d6;
+  --color-brand-400: #4f80c0;
+  --color-brand-500: #2f62a6;
+  --color-brand-600: #224d88;
+  --color-brand-700: #1c3e6e;
+  --color-brand-800: #172f52;
+  --color-brand-900: #0f1f38;
+
+  /* Accent inspired by molten metal. */
+  --color-ember-400: #f59e42;
+  --color-ember-500: #e8791c;
+  --color-ember-600: #c75f0e;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply min-h-dvh bg-slate-50 font-sans text-slate-900 antialiased;
+  }
+
+  /* Indic scripts have tall vowel signs; extra line height prevents clipping. */
+  :root:lang(bn) body,
+  :root:lang(hi) body,
+  :root:lang(gu) body {
+    line-height: 1.7;
+  }
+}

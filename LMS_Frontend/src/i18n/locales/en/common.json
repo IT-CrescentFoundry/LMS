@@ -1,0 +1,88 @@
+{
+  "app": {
+    "name": "Crescent Foundry LMS",
+    "companyName": "Crescent Foundry",
+    "productName": "Learning Management System",
+    "skipToContent": "Skip to main content"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "open": "Open navigation menu",
+    "close": "Close navigation menu",
+    "comingSoon": "Coming soon",
+    "dashboard": "Dashboard",
+    "myLearning": "My Learning",
+    "courses": "Course Catalogue",
+    "assessments": "Assessments",
+    "competencies": "Competencies",
+    "career": "Career Development",
+    "certifications": "Certifications",
+    "organisation": "Organisation",
+    "reports": "Reports & Analytics",
+    "administration": "Administration"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "status": {
+    "indicatorLabel": "API connection status",
+    "checking": "Checking connection…",
+    "online": "Connected",
+    "degraded": "Connected · database unavailable",
+    "offline": "API unreachable"
+  },
+  "dashboard": {
+    "title": "Welcome to Crescent Foundry LMS",
+    "subtitle": "Continuous learning for every role, every plant and every career stage.",
+    "foundationNotice": {
+      "title": "Platform foundation",
+      "body": "This is the initial foundation of the learning platform. Learning features will be added in later stages."
+    },
+    "plannedModules": {
+      "title": "Planned learning modules",
+      "badge": "Planned",
+      "induction": {
+        "title": "Induction and foundation courses",
+        "description": "Company-wide onboarding, safety and foundry fundamentals."
+      },
+      "rolePaths": {
+        "title": "Role-based learning paths",
+        "description": "Learning paths matched to your department, responsibilities and designation."
+      },
+      "competency": {
+        "title": "Competency development",
+        "description": "Theoretical and practical assessments that build verified skills."
+      },
+      "career": {
+        "title": "Career development",
+        "description": "Preparation for your next role, with AI-assisted recommendations."
+      }
+    },
+    "systemStatus": {
+      "title": "System status",
+      "api": "API service",
+      "database": "Database",
+      "version": "Version",
+      "lastChecked": "Last checked",
+      "retry": "Check again",
+      "states": {
+        "ok": "Available",
+        "not_configured": "Not configured",
+        "unavailable": "Unavailable"
+      },
+      "offlineTitle": "Cannot reach the LMS API",
+      "offlineBody": "Check that the backend service is running, then try again."
+    }
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Try again"
+  },
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you are looking for does not exist or has moved.",
+    "backToDashboard": "Back to dashboard",
+    "unexpectedTitle": "Something went wrong",
+    "unexpectedBody": "An unexpected error occurred. Please try again."
+  }
+}

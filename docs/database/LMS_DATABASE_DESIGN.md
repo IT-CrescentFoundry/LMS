@@ -1,0 +1,389 @@
+# LMS Database Design
+
+| | |
+|---|---|
+| **Status** | Stage A: database **infrastructure only** — **no tables exist** and no migrations have been run. Stage A.1: entity design extended to all domains. Every table below is a **proposal [P]** to be refined and implemented through Alembic migrations in its roadmap stage. |
+| **Database** | MySQL 8.0 (InnoDB). A MySQL 8.0.46 server exists on the development machine, but the LMS has **not** connected to it: no dedicated LMS database or credentials exist. |
+| **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
+| **Related** | [Organisation architecture](../architecture/ORGANISATION_ARCHITECTURE.md) · [System architecture §6](../architecture/LMS_SYSTEM_ARCHITECTURE.md) (domain model) · [Import profiles](EXCEL_IMPORT_PROFILES.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) |
+
+---
+
+## 1. What exists in Stage A
+
+| Item | Location | Purpose |
+|---|---|---|
+| Declarative base + naming convention | `LMS_Backend/app/db/base.py` | Shared `Base`; deterministic constraint names. |
+| Engine / session management | `LMS_Backend/app/db/session.py` | PyMySQL engine, pool pre-ping, timeouts, UTC session time zone; request-scoped sessions. |
+| Configuration | `LMS_Backend/app/core/config.py` | `LMS_DB_*` settings; no default database; partial settings rejected. |
+| Alembic environment | `LMS_Backend/alembic/`, `alembic.ini` | No revisions; refuses to run without LMS settings; production guard. |
+| Readiness check | `GET /api/v1/health/ready` | `SELECT 1` when configured; `not_configured` otherwise. |
+
+## 2. Conventions (apply to every table)
+
+### 2.1 Platform
+- **InnoDB**; **`utf8mb4` / `utf8mb4_0900_ai_ci`** (Bengali, Hindi, Gujarati); connection `charset=utf8mb4`. **[C]**/**[P]**
+- Timestamps in **UTC** as `DATETIME(6)`; connection `time_zone = '+00:00'`. Business dates (effective dates, joining, expiry, session dates) as `DATE`; session times as UTC `DATETIME(6)` converted for display. **[P]**
+
+### 2.2 Keys and identifiers **[P]**
+- `id BIGINT UNSIGNED AUTO_INCREMENT` primary keys.
+- Non-enumerable `public_id` (`BINARY(16)`, time-ordered UUID) where identifiers leave the system; **certificate verification uses a separate random token** (only its hash stored).
+- Business keys (`employee_code`, `unit_code`, `curriculum code`, `certificate_number`, …) carry **unique constraints**; imports match on them.
+
+### 2.3 Naming
+Tables `snake_case`, singular; FKs `<entity>_id`; constraints per the convention in `app/db/base.py`:
+
+| Kind | Pattern | Example |
+|---|---|---|
+| Primary key | `pk_<table>` | `pk_org_unit` |
+| Foreign key | `fk_<table>_<column>_<referred_table>` | `fk_org_unit_unit_type_id_org_unit_type` |
+| Unique | `uq_<table>_<columns>` | `uq_org_unit_code` |
+| Index | `ix_<table>_<column>` | `ix_org_unit_type_id` |
+| Check | `ck_<table>_<name>` | `ck_employee_assignment_valid_period` |
+
+### 2.4 Standard columns **[P]**
+`created_at`, `created_by_user_id`, `updated_at`, `updated_by_user_id` (UTC; user NULL for system/import actions where the batch is recorded), and `version` (optimistic locking via SQLAlchemy `version_id_col`).
+
+### 2.5 Lifecycle and deletion **[C]**
+Business records are **never hard-deleted** in normal operation; they carry `status` / `archived_at`. Deletion is a deliberate, approved, audited administrative procedure (e.g. retention purges). FKs use `RESTRICT` (no cascading deletes of business data).
+
+### 2.6 Effective dating **[C]** / mechanism **[P]**
+`effective_from DATE NOT NULL`, `effective_to DATE NULL`, half-open `[from, to)`; check `effective_to IS NULL OR effective_to > effective_from`; "one current row" via a stored generated column `IF(effective_to IS NULL, 1, NULL)` in a unique index; overlap rules MySQL cannot express are enforced in services under row locks.
+
+### 2.7 Translations **[C]** / mechanism **[P]**
+`<entity>_translation (<entity>_id, locale, …)` with unique `(<entity>_id, locale)`; `locale ∈ {en, bn, hi, gu}`; English required; fallback to English. Learning-asset **content files** are localised per locale (§8).
+
+### 2.8 JSON columns **[P]**
+Only for genuinely unstructured or schema-per-type payloads: import staging data, mapping-profile definitions, SCORM runtime data, assessment response payloads (validated per question type), certificate layout specifications, audit snapshots, AI metadata. Anything filtered, joined or reported on is a column.
+
+### 2.9 Migrations **[C]**
+Every change is a reviewed Alembic revision; MySQL DDL is not transactional, so revisions stay small and additive; production requires a backup and `-x allow_production=true`; data-altering migrations need explicit approval.
+
+### 2.10 Database accounts (to be provisioned)
+
+| Account | Privileges | Used by |
+|---|---|---|
+| `lms_app` | `SELECT, INSERT, UPDATE, DELETE` on the LMS schema; **no `UPDATE`/`DELETE` on `audit_log`** | Running API |
+| `lms_migrator` | DDL on the LMS schema only | Alembic during deployments |
+| `lms_report` (later) | `SELECT` on approved reporting views | Reporting/BI |
+
+The LMS schema and accounts are **separate from the PMS**. **[C]**
+
+### 2.11 Normalisation **[C]** / exceptions **[P]**
+The schema targets **third normal form**. Permitted, documented exceptions:
+- **Derived caches** (`employee_competency_current`, `employee_compliance_status`, `employee_training_hours`, finalisation totals) — maintained transactionally by services, always rebuildable from source records, never edited directly.
+- **Denormalised current status** on records whose history lives in an event table (e.g. `certificate_issuance.status` mirrors the latest `certificate_status_event`).
+- JSON payloads per §2.8.
+
+### 2.12 Cross-domain references **[P]**
+- Business relationships use **typed foreign keys**. Where a record may point to one of several kinds of target (e.g. evidence for an achievement), use **one nullable FK column per kind plus a CHECK that exactly one is set**, so referential integrity is enforced.
+- Generic `(entity_type, entity_id)` pairs are allowed **only** for cross-cutting infrastructure: `audit_log`, `record_provenance`, `notification`, import header aliases.
+- MySQL CHECK constraints cannot reference other tables; such rules (e.g. "required level belongs to the skill's level set") are enforced in services and covered by tests.
+
+### 2.13 Immutable evidence records **[C]** / mechanism **[P]**
+Once finalised, these are never updated in substance; corrections create new records that supersede or void the old ones: approved skill assessments, competency achievements, graded assessment attempts, submitted practical evaluations, attendance after finalisation (corrections are separate records), **certificate issuances**, historical training records, audit log. Enforced in services; `certificate_issuance` and `audit_log` additionally protected by `BEFORE UPDATE`/`BEFORE DELETE` triggers. **[P]**
+
+## 3. Independent core concepts **[C]**
+
+The Stage A.1 brief requires these concepts to stay independent. Each is its own table family with explicit relationships:
+
+| Concept | Primary table(s) | Domain | Key relationships |
+|---|---|---|---|
+| Employee | `employee` | Organisation | 0..1 `user_account`; many assignments, roles, responsibilities |
+| User account | `user_account` | Identity | 0..1 `employee`; access-role assignments |
+| Organisation unit | `org_unit` (+ `org_unit_hierarchy`) | Organisation | Typed by `org_unit_type`; optional `location` |
+| Position | `position` | Organisation | Belongs to an org unit; optional designation |
+| Functional role | `functional_role` | Organisation | Mapped from designations/positions; assigned to employees; carries competency requirements |
+| Competency | `competency_skill` (+ levels) | Competency | Scale = `skill_level_set`; required by roles; developed by curricula |
+| Learning Asset | `learning_asset` (+ versions) | Learning | Used by curriculum items |
+| Curriculum | `curriculum` (+ versions, items) | Learning | Contains assets; used by path items |
+| Learning Path | `learning_path` (+ versions, sections, items) | Learning | Contains curricula; belongs to an academy |
+| Training Session | `training_session` | Training operations | Belongs to a batch of an event |
+| Training Event | `training_event` | Training operations | Optionally fulfils a planned activity |
+| Enrolment | `enrolment` | Learning delivery | Employee × path/curriculum version |
+| Attendance | `attendance_record` | Training operations | Employee × session |
+| Competency Achievement | `competency_achievement` | Competency | Evidence links to completions/attempts/evaluations |
+| Compliance Skill | `compliance_skill` | Compliance | Requirement and fulfilment rules |
+| Certificate | `certificate_issuance` | Certification | Definition `certification`; status events; renewals |
+
+## 4. Identity and access **[P]** (Stage B)
+
+| Table | Purpose / key columns and constraints |
+|---|---|
+| `user_account` | `login_id` UNIQUE (employee code for employees), `employee_id` NULL UNIQUE, `status` (active/locked/disabled), `last_login_at`. |
+| `user_credential` | `user_account_id`, `credential_type` (password, kiosk_pin), `secret_hash` (Argon2id), `failed_attempts`, `locked_until`; UNIQUE (`user_account_id`, `credential_type`). |
+| `badge_credential` | `user_account_id`, `token_hash` UNIQUE, printed `badge_serial`, `issued_at`, `revoked_at`; one active badge per user (generated-column unique). |
+| `kiosk_device` | `code`, `name`, `location_id`, `org_unit_id`, `device_token_hash`, `idle_timeout_seconds`, `status`, `registered_by`. |
+| `user_session` | `token_hash` UNIQUE, `user_account_id`, `device_class` (personal/kiosk), `kiosk_device_id`, `last_activity_at`, `idle_expires_at`, `absolute_expires_at`, `revoked_at`. |
+| `access_role`, `access_permission`, `access_role_permission` | Configurable **access roles** (named `access_*` to keep them distinct from functional roles). |
+| `access_role_assignment` | `user_account_id`, `access_role_id`, `scope_org_unit_id` NULL, `include_descendants`, effective dates, `granted_by`. |
+| `access_provisioning_rule` | Explicit rules that grant default access roles from organisation facts (audited). |
+| `audit_log` | Append-only: actor, action, `entity_type`/`entity_id`, before/after JSON, request ID, IP (where lawful), import batch, timestamp. |
+
+## 5. Organisation **[P]** (Stage C)
+
+Standard columns (§2.4) implied.
+
+### `org_unit_type`
+| Column | Type | Constraints |
+|---|---|---|
+| id | BIGINT UNSIGNED | PK |
+| code | VARCHAR(50) | NOT NULL, UNIQUE |
+| name | VARCHAR(150) | NOT NULL (translations in `org_unit_type_translation`) |
+| sort_order | INT | NOT NULL DEFAULT 0 |
+| allows_employee_assignment | BOOLEAN | NOT NULL DEFAULT TRUE |
+| is_active | BOOLEAN | NOT NULL DEFAULT TRUE |
+
+### `org_unit_type_rule`
+`parent_type_id` NULL (FK; NULL = may be root), `child_type_id` (FK); UNIQUE (`parent_type_id`, `child_type_id`).
+
+### `location`
+`code` UNIQUE, `name`, address lines, `city`, `state`, `postal_code`, `country_code` (ISO 3166-1), `time_zone` (IANA, default `Asia/Kolkata`), `status`.
+
+### `org_unit`
+| Column | Type | Constraints |
+|---|---|---|
+| code | VARCHAR(50) | NOT NULL, UNIQUE |
+| name / short_name | VARCHAR(200) / VARCHAR(50) | name NOT NULL |
+| unit_type_id | BIGINT UNSIGNED | NOT NULL, FK, INDEX |
+| location_id | BIGINT UNSIGNED NULL | FK |
+| status | VARCHAR(20) | `active` / `archived`, CHECK |
+| effective_from / effective_to | DATE / DATE NULL | CHECK valid period |
+| external_ref | VARCHAR(100) NULL | INDEX |
+
+### `org_unit_hierarchy`
+`child_unit_id`, `parent_unit_id` (FKs, INDEX on parent), effective dates (CHECK valid period; CHECK child ≠ parent), generated `is_current` with UNIQUE (`child_unit_id`, `is_current`). Cycle and overlap checks in the service.
+
+### `job_family`, `grade`, `designation`, `position`
+- `job_family`: `code` UNIQUE, `name`, `parent_job_family_id` NULL, `is_active`.
+- `grade`: `code` UNIQUE, `name`, `rank`, `is_active`.
+- `designation`: `code` UNIQUE, `title`, `job_family_id` NULL, `grade_id` NULL, `is_active`.
+- `position`: `code` UNIQUE, `title`, `org_unit_id` NOT NULL, `designation_id` NULL, `job_family_id` NULL, `reports_to_position_id` NULL, `headcount` DEFAULT 1, effective dates, `status`.
+
+### Functional roles and responsibilities (new in A.1)
+| Table | Key columns and constraints |
+|---|---|
+| `functional_role` (+ `_translation`) | `code` UNIQUE, `name`, `job_family_id` NULL, `owner_org_unit_id` NULL, `status`. |
+| `designation_functional_role` | `designation_id`, `functional_role_id`, `scope_org_unit_id` NULL, `scope_include_descendants`, `scope_unit_type_id` NULL, effective dates; one current row per (designation, role, scope). |
+| `position_functional_role` | `position_id`, `functional_role_id`, effective dates. |
+| `employee_functional_role` | `employee_id`, `functional_role_id`, `source` (derived_designation, derived_position, manual, import, exclusion), `is_primary`, effective dates; one current row per (employee, role, source). |
+| `responsibility` (+ `_translation`) | `code` UNIQUE, `name`, `category`, `status`. |
+| `employee_responsibility` | `employee_id`, `responsibility_id`, `context_org_unit_id` NULL, `context_location_id` NULL, `assigned_by_user_id`, effective dates. |
+
+### `employee`
+| Column | Type | Constraints |
+|---|---|---|
+| employee_code | VARCHAR(30) | NOT NULL, UNIQUE |
+| given_name / family_name / display_name | VARCHAR | display_name NOT NULL |
+| preferred_language | CHAR(2) | CHECK IN ('en','bn','hi','gu') |
+| employment_type / employment_status | VARCHAR | configurable / `active`, `on_leave`, `separated` |
+| date_of_joining / date_of_separation | DATE / DATE NULL | CHECK separation ≥ joining |
+| work_email / mobile_number | VARCHAR NULL | optional |
+| external_ref | VARCHAR(100) NULL | INDEX |
+
+**No compensation, bank or identity-number columns exist — by design.** **[C]**
+
+### `employee_assignment`
+`employee_id`, `org_unit_id` (NOT NULL), `position_id` NULL, `designation_id` NULL, `location_id` NULL, `assignment_type`, `is_primary`, effective dates. Generated `primary_current` + UNIQUE (`employee_id`, `primary_current`). Index (`org_unit_id`, `effective_to`).
+
+### Reporting relationships
+- `reporting_relationship_type`: `code` UNIQUE, `name`, `allows_multiple`, `is_hierarchical`, `is_active`.
+- `reporting_relationship`: `employee_id`, `manager_employee_id`, `relationship_type_id`, effective dates; CHECK employee ≠ manager; single-valued types: one current row per (employee, type); cycles checked in the service.
+
+## 6. Competency and development **[P]** (Stage F; achievement rules Stage I)
+
+| Table | Key columns and constraints |
+|---|---|
+| `skill_level_set` | `code` UNIQUE, `name`, `description`, `is_active`. The Bagnan scale is a **row**, not code. **[C]** |
+| `skill_level` (+ `_translation`) | `skill_level_set_id`, `numeric_value` SMALLINT, `code`, `label`, `description`; UNIQUE (set, `numeric_value`). |
+| `competency_category` | `code` UNIQUE, `name`. |
+| `competency_skill` (+ `_translation`) | `code` UNIQUE, `name`, `category_id`, `skill_level_set_id`, `owner_org_unit_id`, `status`. |
+| `competency_skill_level_descriptor` | `competency_skill_id`, `skill_level_id`, `description` (level meaning for that skill). [A] Q-02 |
+| `functional_role_competency` | `functional_role_id`, `competency_skill_id`, `required_skill_level_id`, `importance` (mandatory/desirable), effective dates; one current row per (role, skill). Level ∈ skill's set: service rule. |
+| `curriculum_competency` | `curriculum_id`, `competency_skill_id`, `max_contribution_level_id` NULL; UNIQUE (curriculum, skill). |
+| `competency_achievement_rule` | `competency_skill_id`, `skill_level_id`, `version_no`, `status`, effective dates. |
+| `competency_rule_requirement` | `rule_id`, `requirement_type` (curriculum_completion, assessment_result, practical_validation, assessor_rating), typed FKs `curriculum_id` / `assessment_id` / `practical_checklist_template_id`, `min_score_percent`; CHECK the FK matching the type is set. |
+| `employee_skill_assessment` | `employee_id`, `competency_skill_id`, `skill_level_id`, `assessed_on` DATE, `method` (assessor_rating, manager_rating, practical_evaluation, imported_matrix), `assessor_user_id` NULL, `practical_evaluation_id` NULL, `status` (draft, submitted, approved, rejected, superseded), `remarks`, `source_raw_value` NULL, `approved_by`, `approved_at`. Immutable once approved. |
+| `competency_achievement` | `employee_id`, `competency_skill_id`, `skill_level_id`, `achieved_on`, `rule_id`, `status` (active, withdrawn), `withdrawn_reason`. |
+| `competency_achievement_evidence` | `achievement_id`, typed FKs `enrolment_id` / `assessment_attempt_id` / `practical_evaluation_id` / `employee_skill_assessment_id`; CHECK exactly one. |
+| `employee_competency_current` | Derived cache: `employee_id`, `competency_skill_id`, `skill_level_id`, `numeric_value`, source reference, `as_of`; UNIQUE (employee, skill). |
+| `development_plan` | `employee_id`, `financial_year_id`, `owner_employee_id` (manager), `status` (draft, approved, in_progress, closed), `source` (manual/import); one active plan per (employee, FY). |
+| `development_plan_item` | `plan_id`, `competency_skill_id`, `current_skill_level_id` NULL, `target_skill_level_id` NULL, `intervention_type` NULL, `curriculum_id` NULL, `training_programme_id` NULL, `target_date` NULL, `status` (incl. *unclassified*), **`source_indicator_raw` VARCHAR(20) NULL** (verbatim, e.g. "Y", "US"), `indicator_mapping_id` NULL → `source_value_mapping`. **[C]** |
+
+## 7. Compliance and certification **[P]** (Stage J)
+
+| Table | Key columns and constraints |
+|---|---|
+| `compliance_skill` (+ `_translation`) | `code` UNIQUE, `name`, `category` (safety, statutory, regulatory, quality), `default_validity_months` NULL, `status`. **Separate from `competency_skill`.** **[C]** |
+| `compliance_requirement_rule` | `compliance_skill_id`, `audience_rule_id`, `grace_days`, effective dates, `status`. |
+| `compliance_fulfilment_option` | `compliance_skill_id`, `fulfilment_type` (certification, curriculum_completion, external_certification), typed FKs `certification_id` / `curriculum_id` / `external_certification_type_id`; CHECK. |
+| `compliance_exemption` | `employee_id`, `compliance_skill_id`, `reason`, `approved_by`, `valid_from`, `valid_to`. |
+| `employee_compliance_status` | Derived cache: `employee_id`, `compliance_skill_id`, `status` (compliant, due_soon, expired, missing, not_applicable, exempt), `valid_until`, satisfying reference, `computed_at`; UNIQUE (employee, skill). |
+| `certification` (+ `_translation`) | `code` UNIQUE, `name`, `kind` (completion, appreciation, compliance, authorisation, external), `validity_months` NULL, `renewal_lead_days`, `certificate_template_id` NULL, `requires_practical_validation`, `requires_signatory_approval`, `issuing_org_unit_id`, `status`. **CHECK: `kind = 'authorisation'` ⇒ both flags TRUE.** **[C]**/**[P]** |
+| `certification_requirement` | `certification_id`, `requirement_type` (curriculum_completion, assessment_result, practical_validation, competency_level), typed FKs; CHECK. |
+| `certificate_template` | `code` UNIQUE, `kind` (completion, appreciation, …), `name`. Separate templates for completion and appreciation. **[C]** |
+| `certificate_template_version` | `template_id`, `version_no`, `layout_spec` JSON, `design_file_id` (branding from the supplied Crescent designs, [A] Q-10), `locales`, `status`, `approved_by`. |
+| `certificate_number_sequence` | `scope_key` UNIQUE (e.g. plant + FY), `prefix`, `next_value`; incremented under row lock. Format [A] Q-10. |
+| `certificate_issuance` | **`certificate_number` UNIQUE**, `certification_id`, `employee_id`, `template_version_id`, `issued_on`, `valid_from`, `expires_on` NULL, `status` (active, suspended, revoked, superseded — *expired* is derived from `expires_on`), `issued_by_user_id`, `approved_by_user_id` NULL, typed basis FKs (`enrolment_id`, `competency_achievement_id`, `practical_evaluation_id`) or `manual_reason`, **`renews_issuance_id` NULL UNIQUE** (self-FK: a renewal is a new row), `verification_token_hash` UNIQUE, `document_file_id`, `document_sha256`. Immutable (§2.13). |
+| `certificate_status_event` | `issuance_id`, `event_type` (issued, suspended, reinstated, revoked, superseded), `reason`, `effective_at`, `actor_user_id`, `approved_by_user_id`. |
+| `external_certification_type` | `code`, `name`, default issuing body, default validity. |
+| `external_certification_record` | `employee_id`, `type_id` NULL, `issuing_body`, `certificate_number`, `issued_on`, `expires_on`, `document_file_id`, `verification_status` (pending, verified, rejected), `verified_by`, `verified_at`. |
+
+The **Skill Passport** has no table: it is a read model over §6, §7, §8 and §10 (FR-SKP-003). **[P]**
+
+## 8. Learning catalogue and delivery **[P]** (catalogue Stage G; delivery Stage H)
+
+### 8.1 Catalogue
+| Table | Key columns and constraints |
+|---|---|
+| `learning_academy` (+ `_translation`) | `code` UNIQUE, `owner_org_unit_id`, `sort_order`, `status`. |
+| `learning_path` | `code` UNIQUE, `academy_id`, `status`. |
+| `learning_path_version` | `path_id`, `version_no`, `status` (draft, sme_review, hr_review, published, retired), `sequence_mode` (free, sequential), `completion_rule` (all_mandatory, min_items), `min_items`, `default_due_days`, `certification_id` NULL, `published_at/by`; UNIQUE (path, version_no). |
+| `learning_path_section` (+ `_translation`) | `path_version_id`, `sequence`, `completion_rule`, `min_items`, `due_offset_days` NULL. |
+| `learning_path_item` | `section_id`, `curriculum_id`, `sequence`, `is_mandatory`, `prerequisite_item_id` NULL, `due_offset_days` NULL; UNIQUE (section, curriculum). |
+| `curriculum` | `code` UNIQUE, `owner_org_unit_id`, `status`. |
+| `curriculum_version` (+ `_translation`) | `curriculum_id`, `version_no`, `status`, `sequence_mode`, `min_optional_items`, **`validity_months` NULL**, **`retraining_lead_days`**, **`refresher_curriculum_id` NULL**, `certification_id` NULL, `estimated_minutes`, `origin` (manual, ai_assisted), `published_at/by`. |
+| `curriculum_item` | `curriculum_version_id`, `learning_asset_id`, `sequence`, **`is_mandatory`**, `completion_requirement` (viewed, passed, attended, validated), `min_score_percent` NULL; UNIQUE (version, asset). |
+| `learning_asset` | `code` UNIQUE, `asset_type` (reference, document, presentation, video, podcast, scorm, assessment, assignment, survey, classroom, ojt_practical, external_resource), `owner_org_unit_id`, `status`. |
+| `learning_asset_version` (+ `_translation`) | `asset_id`, `version_no`, `status`, `duration_minutes`, `origin`, `published_at/by`. |
+| Asset subtype tables (1:1 or 1:locale with `learning_asset_version`) | `asset_file_content` (locale, `file_id`) · `asset_media_content` (locale, `file_id` or stream URL, captions `file_id`) · `asset_scorm_package` (`scorm_version` [A] Q-16, `package_file_id`, `launch_href`) · `asset_external_resource` (`url`, `provider`) · `asset_assessment` (`assessment_id`) · `asset_assignment` (`assignment_definition_id`) · `asset_survey` (`survey_id`) · `asset_classroom` (`training_programme_id`, `min_attendance_percent`) · `asset_practical` (`practical_checklist_template_id`). Subtype must match `asset_type` (service rule). |
+| `content_review_task` | Typed target FKs (asset/curriculum/path/assessment/checklist/certificate-template version; CHECK exactly one), `stage` (sme_validation, safety_review, hr_approval), `assigned_to_user_id`, `decision` (pending, approved, rejected), `comments`, `decided_at`. **HR approval is the last stage before publishing.** **[C]** |
+| `audience_rule`, `audience_rule_criterion` | Reusable audiences: criterion type (org_unit_subtree, location, designation, functional_role, job_family, responsibility, employment_type, all_employees) with typed FKs and include/exclude; AND across types, OR within a type. Used by visibility, allocation and compliance rules. |
+| `catalogue_visibility` | Typed target (academy/path/curriculum) + `audience_rule_id`. |
+
+### 8.2 Delivery
+| Table | Key columns and constraints |
+|---|---|
+| `learning_allocation_rule` | Typed target (path/curriculum), `audience_rule_id`, `due_rule_type` (relative_to_allocation, relative_to_joining, fixed_date), `due_days`, `due_date`, effective dates, `status`. |
+| `learning_allocation` | `employee_id`, typed target, `allocation_rule_id` NULL, `allocated_by_user_id` NULL, `reason`, `due_date`, `status` (open, fulfilled, cancelled, expired). |
+| `enrolment` | `employee_id`, typed version FK (`learning_path_version_id` / `curriculum_version_id`; CHECK exactly one), `parent_enrolment_id` NULL (curriculum inside a path), `learning_allocation_id` NULL, `source` (allocation, self, nomination, manager, hr), `status` (pending_approval, active, completed, expired, withdrawn, failed), `enrolled_at`, `due_date`, `completed_at`, **`valid_until`**, `retraining_of_enrolment_id` NULL. |
+| `enrolment_approval` | `enrolment_id`, `approver_user_id`, `decision`, `decided_at`, `comments`. |
+| `enrolment_item_progress` | `enrolment_id`, `curriculum_item_id`, `asset_version_id` (version actually used), `status`, `progress_percent`, `score`, `attempts_used`, `started_at`, `completed_at`, `time_spent_seconds`, `completion_source` (self_view, scorm, assessment_attempt, assignment_submission, event_attendance, practical_evaluation, waiver) with typed evidence FKs; UNIQUE (enrolment, item). |
+| `scorm_runtime_state` | `enrolment_item_progress_id`, `cmi_data` JSON, `lesson_status`, `score_raw`, `updated_at`. |
+| `reinforcement_rule`, `reinforcement_task` | Rule: `curriculum_version_id`, `offset_days`, `learning_asset_id`. Task: `enrolment_id`, `rule_id`, `due_on`, `status`. [A] Q-26 |
+
+## 9. Assessment and practical evaluation **[P]** (Stage I)
+
+| Table | Key columns and constraints |
+|---|---|
+| `question_bank` | `code` UNIQUE, `name`, `owner_org_unit_id`. |
+| `question`, `question_version` (+ `_translation`) | Version: `question_type` (mcq_single, multi_response, fill_blank, match, subjective), `points`, `difficulty`, `status`, `origin` (manual, ai_generated), approval fields. |
+| `question_option` (+ `_translation`) | MCQ / multiple response: `sequence`, `is_correct`. |
+| `question_blank`, `question_blank_answer` | Fill-in-the-blank: blank number; accepted answers per locale, case sensitivity. |
+| `question_match_pair` (+ `_translation`) | Match-the-following pairs. |
+| `question_rubric_criterion` | Subjective marking criteria and points. |
+| `question_tag` | Tags for selection rules. |
+| `assessment`, `assessment_version` | Version: **`mode` (practice, final)**, `pass_percent`, **`max_attempts` NULL** (unlimited), `time_limit_minutes`, shuffle flags, feedback policy, `status`, approval fields. |
+| `assessment_section`, `assessment_fixed_item`, `assessment_selection_rule` | Fixed questions and/or random selection (bank, tag, difficulty, type, count). |
+| `assessment_attempt` | `employee_id`, `assessment_id`, `assessment_version_id`, `enrolment_item_progress_id` NULL, `attempt_no`, `status` (in_progress, submitted, awaiting_evaluation, graded, voided), `auto_score`, `final_score`, `result`, `graded_by_user_id`, `graded_at`; UNIQUE (employee, assessment, attempt_no). |
+| `attempt_question`, `attempt_response` | Exact `question_version_id` shown and order; response payload JSON; `auto_score`, `manual_score`, `evaluator_user_id`, `evaluator_comment`. |
+| `evaluation_task` | Manual evaluation queue: typed target (attempt / assignment submission), `assigned_to_user_id`, `status`. |
+| `assignment_definition` (+ `_translation`) | **`mode` (online, face_to_face)**, instructions, `max_score`, `pass_score`, rubric. |
+| `assignment_submission`, `assignment_submission_file` | Employee, progress link, submitted text/files, `status`, `score`, `result`, `evaluator_user_id`, feedback. Face-to-face results are recorded by the trainer/assessor. |
+| `practical_checklist_template`, **`practical_checklist_version`**, `practical_checklist_item` (+ `_translation`) | Versioned checklists: items with criterion, `is_critical`, rating type, guidance; version pass rule. |
+| `practical_evaluation` | `employee_id`, `checklist_version_id`, `assessor_user_id`, `assessed_at`, `org_unit_id`, `location_id`, context (typed FKs: enrolment item, competency validation, authorisation), `outcome` (competent, not_yet_competent, incomplete), **`assessor_remarks`**, `status` (draft, submitted, acknowledged, verified, voided), `verified_by_user_id` NULL. Immutable after submission. |
+| `practical_evaluation_item_result` | Per item: result, rating, comment. |
+| `practical_evaluation_evidence` | **Evidence attachments**: `file_id`, caption, `captured_at`. |
+| `employee_acknowledgement` | Typed subject FKs (practical evaluation, assessment result, certificate issuance), `employee_id`, `acknowledged_at`, `method` (pin_reauth, password_reauth, kiosk_pin), `agrees`, `comment`. Disagreement triggers review; never alters the evaluation. [A] Q-24 |
+
+## 10. Training operations **[P]** (Stage E)
+
+| Table | Key columns and constraints |
+|---|---|
+| `financial_year` | `code` UNIQUE (e.g. `FY2026-27`), `starts_on`, `ends_on` (default 1 Apr – 31 Mar, [A] Q-13); no overlaps (service). |
+| `training_calendar` | `financial_year_id`, `scope_type` (company, location, org_unit), `scope_location_id` / `scope_org_unit_id` (CHECK matches type), `calendar_type` (general, safety), `source_role` (consolidated, departmental) NULL, `version_no`, `status`, `approved_by`, `published_at`. |
+| `training_programme` (+ `_translation`) | `code` UNIQUE, objectives, `standard_duration_minutes`, `default_mode`, `compliance_skill_id` NULL, `cpd_eligible`, `status`. |
+| **`planned_training_activity`** | `calendar_id`, `training_programme_id` NULL, `title_raw`, `title_normalised`, `target_org_unit_id` NULL, `location_id` NULL, `planned_month` / `planned_start_date` / `planned_end_date`, `planned_mode`, `planned_duration_minutes`, **`planned_participant_count`** (planning figure only), `target_audience_text`, `planned_trainer_text`, `planned_vendor_id` NULL, `status` (planned, scheduled, delivered, postponed, cancelled). **Never referenced as attendance.** **[C]** |
+| `training_request`, `training_request_employee` | Requester, unit, programme or topic, justification, `status`, approver, fulfilling activity/event FKs. |
+| **`training_event`** | `code` UNIQUE, `training_programme_id` NULL, **`planned_training_activity_id` NULL** (many events → one activity; NULL = unplanned), `title`, **`delivery_mode`** (classroom, online, hybrid, ojt), `organiser_org_unit_id`, `location_id`, `status`, `event_series_id` NULL, `cpd_eligible`, `is_historical_import`. |
+| `training_event_plan` | 1:1 with event: objectives, agenda, materials, prerequisites, logistics. |
+| `training_event_series` | `recurrence_rule` (RFC 5545 RRULE), template values. |
+| `training_batch` | `event_id`, `code`, `capacity`, `nomination_deadline`. |
+| **`training_session`** | `batch_id`, `starts_at`, `ends_at` (CHECK ends > starts), `venue_id` NULL, `online_platform_id` NULL, `join_url` NULL, `status`. |
+| `session_trainer` | `session_id`, `trainer_id`, `trainer_role` (lead, co_trainer, assessor). |
+| `venue` | `location_id`, `code`, `name`, `capacity`, `venue_type`, `status`. |
+| `online_platform` | `code`, `name`, `platform_type`. |
+| `trainer` | `trainer_type` (internal, external), `employee_id` NULL UNIQUE, `external_name` NULL, `vendor_id` NULL, qualifications; CHECK internal ⇒ employee set, external ⇒ name set. |
+| `vendor` | `code` UNIQUE, `name`, business contact details, `status`. |
+| `event_nomination` | `batch_id`, `employee_id`, `source` (self, manager, coordinator, development_plan, allocation, training_request), `nominated_by_user_id`, `status`, `decided_by`, `decided_at`. |
+| `event_participant` | `batch_id`, `employee_id`, `nomination_id` NULL, `is_walk_in`, `confirmation_status`, `attendance_outcome` (set at finalisation); UNIQUE (batch, employee). |
+| **`attendance_record`** | `session_id`, `employee_id`, `participant_id`, `status` (present, partial, absent, excused), `check_in_at`, `check_out_at`, `minutes_attended`, `capture_method` (manual, upload, qr_self, badge_scan, kiosk), `recorded_by_user_id`, `revision_no`; UNIQUE (session, employee). **Individual attendance only.** **[C]** |
+| `attendance_correction` | `attendance_record_id`, `previous_status`, `previous_minutes`, `new_status`, `new_minutes`, `reason`, `requested_by`, `approved_by`, `approved_at`. |
+| `session_checkin_token` | `session_id`, `token_hash`, `valid_from`, `valid_to` (rotating). |
+| `event_finalisation` | `event_id`, `finalised_at`, `finalised_by`, `participant_count`, `total_manhours`, `reopened_at`, `reopened_by`, `reopen_reason` (one row per finalisation cycle). |
+| `employee_training_hours` | Derived at finalisation: `event_id`, `employee_id`, `attended_minutes`, `training_hours`, `cpd_hours`, `financial_year_id`. Rebuilt on reopen. |
+| `event_feedback_request` | `training_event_id`, `survey_version_id`, `opens_at`, `closes_at`. |
+| `historical_training_record` | `employee_id`, `title_raw`, `training_programme_id` NULL, `start_date`, `end_date`, `hours_raw`, `hours`, `provider_text`, `location_text`, `internal_external`, `certificate_number_raw`; immutable; provenance required. |
+
+## 11. Shared services **[P]**
+
+| Table | Purpose |
+|---|---|
+| `survey`, `survey_version`, `survey_question` (+ `_translation`), `survey_question_option`, `survey_response`, `survey_answer` | Shared survey/feedback component used by learning assets and training events; responses carry typed context FKs (event, enrolment); optional anonymity. |
+| `file_object` | All stored files: `storage_key` UNIQUE, `original_filename`, `content_type`, `size_bytes`, `sha256`, `classification` (learning_content, evidence, import_source, certificate_document, submission, template_asset), `uploaded_by`, `retention_until`, `deleted_at`. |
+| `notification`, `notification_preference` | In-app/email notifications, calendar invitations (`.ics`). |
+
+## 12. Imports and provenance **[P]** (Stage D)
+
+| Table | Purpose / key columns |
+|---|---|
+| `import_profile` | System-defined profiles 1–6 (`code`, `version`). |
+| `import_mapping_profile`, `import_mapping_profile_version` | Saved mappings: `definition` JSON (sheets, header rows, columns, orientation, transforms). |
+| `import_header_alias` | `import_profile_id`, `header_normalised`, target (`entity_type`, `entity_id`), e.g. skill header → competency skill. |
+| `source_value_mapping` | `field_code`, `source_value`, `mapped_value_code`, **`confirmed`**, `confirmed_by`, `confirmed_at`. Unconfirmed mappings never change business meaning. |
+| `import_exclusion_pattern` | Protected patterns for excluded columns (CTC, salary, bank, …), `is_protected`. |
+| `import_batch` | Profile, mapping version, parameters JSON (FY, as-of date, scope), `file_object_id`, `file_sha256`, `status`, counts, uploader, confirmer, timestamps, failure reason. |
+| `import_batch_sheet` | Sheet name, header row, row count, **ignored header names only** (never values). |
+| `import_row` | `batch_id`, sheet, `source_row_number`, `source_column_ref` (matrix cell), `normalised_data` JSON (**mapped fields only**), natural key, classification, target entity. |
+| `import_issue` | Row/column, code, severity, message key, parameters. |
+| `import_duplicate_candidate` | Incoming row vs other row or existing record, `score`, `reasons` JSON, `decision` (pending, same, different, skip), decided by/at, `remembered`. |
+| `record_provenance` | `entity_type`, `entity_id`, `import_row_id`, `relation` (created, updated, confirmed); INDEX (`entity_type`, `entity_id`). |
+
+## 13. Reporting read models **[P]** (Stage K)
+
+Reports are served from **SQL views** over the normalised tables, plus the derived caches (§2.11) where aggregation is expensive. Every report query applies the caller's **scope** (org-unit subtree of their access-role assignments). Mapping:
+
+| Report | Main sources |
+|---|---|
+| Training Completion; Dept & Plant Learning Status | `learning_allocation`, `enrolment`, current `employee_assignment` |
+| Event Attendance | `attendance_record`, `event_participant`, `training_session` |
+| Competency Skill Finder; Skill Gap | `employee_competency_current`, `employee_functional_role`, `functional_role_competency` |
+| Compliance | `employee_compliance_status` |
+| Certification Register; Expiry | `certificate_issuance`, `certificate_status_event`, `external_certification_record` |
+| Employee Training History | `enrolment`, `employee_training_hours`/`attendance_record`, `historical_training_record` |
+| Training Calendar vs Actual | `planned_training_activity`, `training_event`, `event_finalisation` |
+| Training Hours & CPD | `employee_training_hours`, completions with CPD eligibility |
+| Training Requests | `training_request` |
+
+## 14. AI **[P]** (Stage L)
+
+`ai_request_log` (feature, model, tokens, latency, outcome — no personal data in prompts by default), `ai_generated_draft` (typed target: asset version, question version, curriculum version), `ai_review_decision` (linked to `content_review_task`). Grounding sources are **published** asset versions only. Embedding storage: open decision (system architecture §12).
+
+## 15. Evidence chain (cross-domain rule) **[C]** / tables **[P]**
+
+```text
+online completion ──► enrolment_item_progress / enrolment ─┐
+theory assessment ──► assessment_attempt (graded) ─────────┼─► competency_achievement (+ evidence) ─► employee_competency_current
+practical validation ► practical_evaluation (submitted) ───┤
+attended & finalised ► attendance_record + event_finalisation ┘
+                                                              └─► certificate_issuance (per certification requirements)
+                                                                     └─► employee_compliance_status (per fulfilment options)
+
+certification.kind = 'authorisation'  ⇒ requires practical_evaluation + signatory approval (never online completion alone)
+```
+
+## 16. Provisioning checklist (needed before connectivity can be verified)
+
+1. Create a dedicated schema, e.g. `crescent_lms` (name to be confirmed), `DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`.
+2. Create `lms_app` and `lms_migrator` with the privileges in §2.10, restricted to the application host(s).
+3. Use TLS for connections that leave the host.
+4. Put credentials in `LMS_Backend/.env` (never committed) or the deployment secret store.
+5. Start the backend; confirm `GET /api/v1/health/ready` returns `200` with `database: ok`.
+
+Until this is done, database connectivity remains **unverified**.
+
+## 17. Open items
+
+- Register items affecting the schema: Q-01, Q-02, Q-03, Q-10, Q-11, Q-13, Q-14, Q-16, Q-21, Q-23, Q-34.
+- UUID generation for `public_id` (Python 3.12 has no built-in UUIDv7): choose a helper or library in Stage B. **[P]**
+- Trigger-based immutability for `certificate_issuance` and `audit_log` to be validated against Alembic and the migration account's privileges in Stage B/J. **[P]**

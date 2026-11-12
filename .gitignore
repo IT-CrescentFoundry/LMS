@@ -1,0 +1,40 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+
+# Node
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Local databases and application storage
+*.sqlite
+*.sqlite3
+storage/
+uploads/
+
+# Private employee and organisation data
+private-data/
+data/private/
+data/imports/
+
+# IDE and OS files
+.idea/
+.DS_Store
+Thumbs.db
