@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 
+import { AuthProvider } from '../../features/auth/AuthProvider'
 import { createQueryClient } from './queryClient'
 
 interface AppProvidersProps {
@@ -11,9 +12,14 @@ interface AppProvidersProps {
 
 /**
  * Application-wide providers. i18n is initialised by importing `src/i18n`
- * (see main.tsx) and needs no provider.
+ * (see main.tsx) and needs no provider. AuthProvider sits inside the query
+ * client (it caches the session there) and outside the router.
  */
 export function AppProviders({ children, queryClient }: AppProvidersProps) {
   const [client] = useState(() => queryClient ?? createQueryClient())
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={client}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  )
 }

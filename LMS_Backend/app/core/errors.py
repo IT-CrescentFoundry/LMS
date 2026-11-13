@@ -36,6 +36,31 @@ _STATUS_CODES: dict[int, str] = {
 }
 
 
+class AppError(Exception):
+    """Expected, client-facing failure raised by services.
+
+    Services raise ``AppError`` instead of FastAPI's ``HTTPException`` so that
+    business logic stays independent of the web framework. ``code`` is a stable
+    identifier the frontend translates; ``message`` is a safe English fallback.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        *,
+        details: list[ValidationIssue] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.message = message
+        self.details = details
+        self.headers = headers
+
+
 def error_code_for_status(status_code: int) -> str:
     return _STATUS_CODES.get(status_code, "http_error")
 
@@ -94,6 +119,15 @@ def _as_error_list(errors: Any) -> list[dict[str, Any]]:
     return [error for error in errors if isinstance(error, dict)]
 
 
+async def _app_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, AppError):  # pragma: no cover - registration guard
+        raise exc
+    return build_error_response(
+        exc.status_code, exc.message, code=exc.code, details=exc.details, headers=exc.headers
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(AppError, _app_error_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)

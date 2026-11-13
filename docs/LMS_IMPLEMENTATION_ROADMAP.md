@@ -4,9 +4,9 @@ The LMS is built in explicitly defined stages. Each stage has a clear scope, dep
 
 | Stage | Name | Status |
 |---|---|---|
-| **A** | Project foundation and technical architecture | **Complete** — database connectivity unverified |
+| **A** | Project foundation and technical architecture | **Complete** (database connectivity verified in Stage B) |
 | **A.1** | Architecture alignment with business requirements (documentation only) | **Complete** |
-| B | Identity, access and audit (employee ID login, kiosk PIN, badges, idle logout, access roles) | Not started |
+| **B** | Identity, access and audit (accounts, password sign-in, sessions and idle logout, CSRF, access roles, audit, Super Admin bootstrap, sign-in UI) | **Complete** — kiosk PIN, badges and OTP/SSO deferred (Q-07, Q-08, Q-09) |
 | C | Organisation and employee core (incl. functional roles, responsibilities) + Control Room v1 | Not started |
 | D | Import framework + profile 1 (organisation & employees) | Not started |
 | E | Training operations + profiles 4, 5, 6 | Not started |
@@ -60,22 +60,62 @@ O: continuous from B
 
 ## Stage A — Foundation *(complete)*
 
-Frontend shell, backend API foundation, health checks, database/Alembic infrastructure, tests and documentation. **Outstanding:** dedicated LMS database not provisioned (connectivity unverified); translations pending native review.
+Frontend shell, backend API foundation, health checks, database/Alembic infrastructure, tests and documentation. Database connectivity was verified in Stage B. **Outstanding:** translations pending native review.
 
 ## Stage A.1 — Architecture alignment *(complete)*
 
 Documentation only: learning hierarchy, organisation extensions (functional roles, responsibilities, access-role separation), competency and compliance domain, training operations domain, assessments and practical evaluation, certification and Skill Passport, three user experiences and kiosk mode, report catalogue, import framework with six profiles, AI updates, database design for all domains, ADR-022…039, assumptions register Q-01…Q-34. **No code, dependencies, tables or migrations changed.**
 
-## Stage B — Identity, access and audit
+## Stage B — Identity, access and audit *(complete)*
 
-**Depends on:** A; **a provisioned LMS database**.
-**Scope:** `user_account`, credentials (password; kiosk PIN), badge tokens, kiosk registration, server-side login sessions with idle/absolute timeouts, CSRF, **access roles** and scoped assignments, access provisioning rules, audit log, first Alembic migrations, `/api/v1/me`, frontend sign-in (employee ID; kiosk badge + PIN), route areas for the three experiences (shells only), idle-logout UX, admin bootstrap procedure (no default passwords).
-**Decisions needed:** Q-07 (credential/SSO), Q-08 (badges), Q-09 (kiosk/PIN policy).
-**Exit criteria:** security tests (session fixation, CSRF, brute force on password and PIN, PIN rejected off-kiosk, badge-only sign-in impossible, idle expiry, authorisation denial); audit entries for auth events.
+**Depends on:** A; a provisioned LMS database (done: `crescent_lms_dev`, `crescent_lms_test`, accounts `lms_app` / `lms_migrator` / `lms_test`).
+
+**Delivered:**
+- **Database:** revisions `0001`–`0003` — eight identity/access/audit tables, seeded roles and permissions, audit append-only triggers. Applied to `crescent_lms_dev` (head `0003`).
+- **Accounts and passwords:** user accounts separate from employees (ADR-040); Argon2id passwords and policy (ADR-042).
+- **Sessions:** server-side, with idle and absolute expiry, rotation and revocation (ADR-043).
+- **Protection:** two-layer CSRF (ADR-044); database-backed login throttling (ADR-045).
+- **Access control:** RBAC with 17 permission codes and 6 access roles, deny by default, assignment guards (ADR-046).
+- **Highest privilege:** CLI-only Super Admin bootstrap (ADR-047). The first Super Admin was created on dev by the operator.
+- **Audit:** append-only audit trail with a read-only viewer (ADR-048).
+- **Infrastructure:** migration/runtime credential separation; isolated, identity-verified test database with a data-independent rebuild (ADR-041).
+- **API:** authentication and administration (see the [API reference](architecture/API_REFERENCE.md)).
+- **Frontend (B6):** sign-in, session restoration and expiry, change password, user menu, permission-aware navigation, read-only User accounts and Audit log pages, in en/bn/hi/gu (ADR-050).
+
+**Exit criteria — evidence:**
+- **Automated tests**, all executed and passing:
+  - 215 backend tests (148 unit + 67 database integration on `crescent_lms_test`);
+  - 129 frontend tests.
+- **Coverage includes:**
+  - session fixation (rotation on sign-in);
+  - CSRF (missing or invalid token, untrusted origin);
+  - brute-force throttling (identifier and IP);
+  - idle and absolute expiry;
+  - authorisation denial and the route inventory;
+  - assignment guards;
+  - Super Admin bootstrap restrictions;
+  - audit immutability (ORM guard and database triggers);
+  - test-database guards and repeated rebuilds.
+- **Real-browser E2E** on `crescent_lms_test`: 32 of 32 checks; HttpOnly/SameSite cookie, Origin and CSRF headers; no tokens in web storage; 80 screenshots across 5 widths × 4 languages.
+- **Operator acceptance** on `crescent_lms_dev` with the real Super Admin: sign-in, session restoration, permissions, Users, Audit log, responsive layouts, sign-out.
+
+**Deferred (not part of Stage B as delivered):**
+- Kiosk registration and PIN sign-in (Q-09).
+- Badge QR identification (Q-08).
+- OTP/SSO (Q-07).
+- Organisation-scoped role assignments and access provisioning rules (Stage C).
+- Re-authentication for sign-offs (Q-24).
+- Account-management screens (Q-44).
+
+FR-IAM-002 is met for personal devices only; kiosk timeouts are deferred.
+
+**Open decisions:** Q-07, Q-08, Q-09 (still open); Q-43 (security parameters); Q-44 (interim account provisioning).
+
+**Production prerequisite:** a DBA decision on creating the audit triggers (`log_bin_trust_function_creators` is a local-development setting only; ADR-048).
 
 ## Stage C — Organisation and employee core
 
-**Depends on:** B.
+**Depends on:** B (complete).
 **Scope:** unit types/rules, units, effective-dated hierarchy, plants/locations, job families, grades, designations, positions, **functional roles**, **responsibilities**, designation/position→role mappings, employees (no compensation data), assignments, employee roles/responsibilities, reporting relationships, as-of queries, history, data-quality view, scope evaluation; Control Room v1 for organisation management.
 **Decisions needed:** Q-23, Q-27, Q-30.
 **Exit criteria:** cycle/overlap/one-primary rules and role resolution covered by tests; scope filtering verified.
@@ -98,14 +138,15 @@ Documentation only: learning hierarchy, organisation extensions (functional role
 
 **Depends on:** C, D.
 **Scope:** skill-level sets (Bagnan scale as data), competency skills, functional-role requirements, designation-to-role mapping use, employee skill assessments (assessor/manager/imported) with approval, current levels, gap computation, development plans with raw indicators, **profiles 2–3** (wide matrices).
-**Decisions needed:** Q-01, Q-02, Q-03.
+**Sources:** Bagnan skill matrices, development plans, **`TC_Library_Crescent_Foundry_v1.xlsx`** (technical competency library; proposed seventh import profile).
+**Decisions needed:** Q-01, Q-02, Q-03, Q-35 – Q-42.
 **Exit criteria:** blank ≠ level; raw indicators preserved; history as-of queries.
 
 ## Stage G — Learning catalogue & content governance
 
 **Depends on:** B, C (and E for classroom assets).
 **Scope:** academies, paths, sections, curricula, items, assets (files, video, podcast, external, SCORM), localised content, versioning, curriculum-to-competency mapping, audience rules and visibility, governance workflow (SME validation, safety review, HR approval/publishing), certificate references.
-**Decisions needed:** Q-16, Q-33.
+**Decisions needed:** Q-16, Q-33; curriculum-to-competency mapping uses the TC Library competencies (Q-38, Q-41).
 **Exit criteria:** unpublished content invisible to learners; published versions immutable; HR approval required to publish.
 
 ## Stage H — Learning delivery, Learner Portal and Manager Portal v1

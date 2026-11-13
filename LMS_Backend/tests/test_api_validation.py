@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
 from app.main import create_app
-from tests.conftest import DUMMY_DB, SettingsFactory
+from tests.conftest import DUMMY_DB, TEST_ORIGIN, SettingsFactory
+
+BROWSER_HEADERS = {"Origin": TEST_ORIGIN}
 
 
 class _ExamplePayload(BaseModel):
@@ -49,7 +51,7 @@ def test_wrong_method_returns_error_envelope(client: TestClient) -> None:
 
 
 def test_invalid_payload_returns_validation_envelope(make_settings: SettingsFactory) -> None:
-    with TestClient(_app_with_test_routes(make_settings)) as client:
+    with TestClient(_app_with_test_routes(make_settings), headers=BROWSER_HEADERS) as client:
         response = client.post(
             "/api/v1/_test/validate", json={"code": "x", "quantity": 0, "secret": "hunter2"}
         )
@@ -65,7 +67,7 @@ def test_invalid_payload_returns_validation_envelope(make_settings: SettingsFact
 
 
 def test_malformed_json_returns_validation_envelope(make_settings: SettingsFactory) -> None:
-    with TestClient(_app_with_test_routes(make_settings)) as client:
+    with TestClient(_app_with_test_routes(make_settings), headers=BROWSER_HEADERS) as client:
         response = client.post(
             "/api/v1/_test/validate",
             content=b"{not json",
@@ -77,7 +79,7 @@ def test_malformed_json_returns_validation_envelope(make_settings: SettingsFacto
 
 
 def test_valid_payload_is_accepted(make_settings: SettingsFactory) -> None:
-    with TestClient(_app_with_test_routes(make_settings)) as client:
+    with TestClient(_app_with_test_routes(make_settings), headers=BROWSER_HEADERS) as client:
         response = client.post("/api/v1/_test/validate", json={"code": "AB", "quantity": 2})
 
     assert response.status_code == 200
@@ -85,7 +87,7 @@ def test_valid_payload_is_accepted(make_settings: SettingsFactory) -> None:
 
 
 def test_unhandled_error_returns_generic_500(make_settings: SettingsFactory) -> None:
-    with TestClient(_app_with_test_routes(make_settings)) as client:
+    with TestClient(_app_with_test_routes(make_settings), headers=BROWSER_HEADERS) as client:
         response = client.get("/api/v1/_test/boom")
 
     assert response.status_code == 500
@@ -125,7 +127,12 @@ def test_api_docs_available_in_development(client: TestClient) -> None:
 
 
 def test_api_docs_disabled_in_production(make_client: Callable[..., TestClient]) -> None:
-    client = make_client(environment="production", **DUMMY_DB)
+    client = make_client(
+        environment="production",
+        session_cookie_secure=True,
+        trusted_origins=["https://lms.example.test"],
+        **DUMMY_DB,
+    )
 
     assert client.get("/api/docs").status_code == 404
     assert client.get("/api/v1/openapi.json").status_code == 404

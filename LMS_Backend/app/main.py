@@ -14,11 +14,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.api.deps import CSRF_HEADER
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
-from app.core.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
+from app.core.middleware import (
+    REQUEST_ID_HEADER,
+    RequestContextMiddleware,
+    TrustedOriginMiddleware,
+)
 from app.db.session import Database
 
 logger = logging.getLogger("app")
@@ -62,18 +67,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_exception_handlers(app)
 
-    # Middleware added last runs first: RequestContextMiddleware wraps CORS so
-    # that preflight responses also carry a request ID and are logged.
+    # Middleware added last runs first. Order (outermost first):
+    #   RequestContext → TrustedOrigin (CSRF layer 1) → CORS → routes.
+    # RequestContext wraps everything so rejected requests are still logged
+    # with a request ID.
     if settings.cors_allowed_origins:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_allowed_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            allow_headers=["Accept", "Accept-Language", "Content-Type", REQUEST_ID_HEADER],
+            allow_headers=[
+                "Accept",
+                "Accept-Language",
+                "Content-Type",
+                REQUEST_ID_HEADER,
+                CSRF_HEADER,
+            ],
             expose_headers=[REQUEST_ID_HEADER],
             max_age=600,
         )
+    app.add_middleware(TrustedOriginMiddleware, trusted_origins=settings.trusted_origins)
     app.add_middleware(RequestContextMiddleware)
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)

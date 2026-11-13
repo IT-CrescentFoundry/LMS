@@ -13,11 +13,11 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 005 | i18next with bundled resources for en/bn/hi/gu | Accepted |
 | 006 | FastAPI with synchronous SQLAlchemy 2 and PyMySQL | Accepted |
 | 007 | MySQL 8, utf8mb4, UTC timestamps | Accepted |
-| 008 | Alembic for all schema changes; no business tables in Stage A | Accepted |
+| 008 | Alembic for all schema changes; no business tables in Stage A | Accepted (Stage B revisions 0001–0003; see 041) |
 | 009 | `LMS_`-prefixed settings with no fallback database | Accepted |
 | 010 | Separate liveness and readiness probes | Accepted |
 | 011 | Same-origin deployment; dev proxy; explicit CORS allow-list | Accepted |
-| 012 | Server-side sessions, CSRF tokens, scoped RBAC | Proposed (extended by 032) |
+| 012 | Server-side sessions, CSRF tokens, scoped RBAC | Partially implemented in Stage B (043–046); org scoping Stage C |
 | 013 | Configurable, effective-dated organisation model | Proposed (extended by 023) |
 | 014 | Safe, staged Excel import pipeline | Superseded by 029 |
 | 015 | Provider-independent AI layer; Claude first; human review | Proposed (extended by 033, 034) |
@@ -28,7 +28,7 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 020 | Pure-Python builds of SQLAlchemy and mypy on Application-Control-restricted Windows machines | Accepted |
 | 021 | HTTPX 2 (`httpx2`) for API tests | Accepted |
 | 022 | Learning hierarchy: Academy → Path → Curriculum → Asset, composed by reference and versioned | Proposed (A.1) |
-| 023 | Access roles separate from functional roles; functional roles and responsibilities in the organisation model | Proposed (A.1) |
+| 023 | Access roles separate from functional roles; functional roles and responsibilities in the organisation model | Access roles implemented (Stage B, 046); functional roles Stage C |
 | 024 | Configurable competency framework; skill-level sets as data | Proposed (A.1) |
 | 025 | Evidence chain: completion, competency, compliance and authorisation are separate records | Proposed (A.1) |
 | 026 | Compliance skills separate from competency skills | Proposed (A.1) |
@@ -36,8 +36,8 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 028 | Immutable certificate issuances; renewal creates a new issuance; status events; random verification tokens | Proposed (A.1) |
 | 029 | Reusable import framework with profiles, provenance and duplicate candidates | Proposed (A.1) |
 | 030 | Preserve raw source values; confirmed value mappings only | Proposed (A.1) |
-| 031 | Three experiences and kiosk mode as route areas of one SPA | Proposed (A.1) |
-| 032 | Employee ID login, kiosk-bound PIN, badge QR tokens, automatic idle logout | Proposed (A.1) |
+| 031 | Three experiences and kiosk mode as route areas of one SPA | Proposed (A.1); `/admin` area started in Stage B |
+| 032 | Employee ID login, kiosk-bound PIN, badge QR tokens, automatic idle logout | Partially implemented (idle logout); kiosk PIN, badges open (Q-08, Q-09) |
 | 033 | Content governance: SME validation, HR final approval and publishing | Proposed (A.1) |
 | 034 | Human oversight of official assessments and practical validations | Proposed (A.1) |
 | 035 | Configurable financial year | Proposed (A.1) |
@@ -45,6 +45,17 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 037 | Shared survey component for learning and training feedback | Proposed (A.1) |
 | 038 | Typed foreign keys for cross-domain references; immutability for evidence records | Proposed (A.1) |
 | 039 | In-process domain events and a separate scheduler/worker for background work | Proposed (A.1) |
+| 040 | User accounts separate from employee identity | Accepted (Stage B) |
+| 041 | Migration/runtime credential separation; isolated, verified test database | Accepted (Stage B) |
+| 042 | Argon2id password hashing and password policy | Accepted (Stage B) |
+| 043 | Server-side sessions and session cookie | Accepted (Stage B) |
+| 044 | CSRF protection: trusted origins plus session-bound token | Accepted (Stage B) |
+| 045 | Database-backed login throttling | Accepted (Stage B) |
+| 046 | RBAC with permission codes; seeded roles; assignment guards | Accepted (Stage B) |
+| 047 | Super Admin bootstrap only through the CLI | Accepted (Stage B) |
+| 048 | Audit event model and append-only protection | Accepted (Stage B) |
+| 049 | UUIDv7 public identifiers; internal keys never exposed | Accepted (Stage B) |
+| 050 | Frontend authentication and session restoration | Accepted (Stage B) |
 
 ---
 
@@ -104,7 +115,7 @@ New decisions are appended with the next number. A changed decision gets a new r
 **Consequences.** Correct storage and sorting for all four languages; no time-zone ambiguity. Display-time conversion is the frontend's responsibility.
 
 ## ADR-008 — Alembic for all schema changes; no business tables in Stage A
-**Status:** Accepted
+**Status:** Accepted. Stage B added the first revisions (`0001`–`0003`) under this rule; ADR-041 adds the migration-credential separation.
 
 **Decision.** Every schema change is a reviewed Alembic revision. The migration environment reads the URL only from LMS settings, enables type comparison, and requires `-x allow_production=true` for online production migrations. Stage A ships the environment with **zero revisions**. A deterministic constraint naming convention is defined on the declarative base.
 
@@ -134,7 +145,7 @@ New decisions are appended with the next number. A changed decision gets a new r
 **Consequences.** Session cookies remain first-party with `SameSite` protection; CSRF defence is simpler; no CORS needed in the default setup. Cross-origin setups remain possible by listing origins.
 
 ## ADR-012 — Server-side sessions, CSRF tokens, scoped RBAC
-**Status:** Proposed (Stage B). Extended in Stage A.1 by ADR-032 (employee ID login, kiosk PIN, badges, idle logout); the "role" terminology here means **access roles** (ADR-023).
+**Status:** Partially implemented in Stage B: sessions (ADR-043), CSRF (ADR-044), throttling (ADR-045) and RBAC with access roles (ADR-046). Organisation-unit scoping of role assignments is deferred to Stage C; the login method remains open (Q-07). Extended in Stage A.1 by ADR-032; the "role" terminology here means **access roles** (ADR-023).
 
 **Decision.** Opaque session tokens in `HttpOnly`/`Secure`/`SameSite` cookies with server-side session records (token hash only), idle/absolute expiry, rotation and revocation. Synchronizer CSRF token in a header for state-changing requests plus `Origin` checks. Permissions grouped into configurable roles; role assignments optionally scoped to an organisation unit and its descendants. Login method(s) — corporate SSO and/or local credentials for shop-floor employees — to be confirmed with the business.
 
@@ -227,7 +238,7 @@ All ADR-022…039 are **Proposed**: designed in Stage A.1, implemented in the ro
 **Consequences.** Reuse without copying; learners' records stay explainable after content changes. More tables and version-resolution logic; governance applies per version.
 
 ## ADR-023 — Access roles separate from functional roles; functional roles and responsibilities
-**Status:** Proposed (Stages B–C). Extends ADR-013.
+**Status:** Access roles implemented in Stage B (ADR-046); functional roles, responsibilities and provisioning rules remain Proposed (Stage C). Extends ADR-013.
 
 **Context.** The brief requires functional roles, responsibilities and designation-to-role mapping, and that an employee's application access role is separate from their functional job role [C].
 
@@ -289,14 +300,14 @@ All ADR-022…039 are **Proposed**: designed in Stage A.1, implemented in the ro
 **Consequences.** No invented semantics; reports can show raw indicators until meanings are confirmed (Q-01).
 
 ## ADR-031 — Three experiences and kiosk mode in one SPA
-**Status:** Proposed (from Stage B)
+**Status:** Proposed (from Stage B). Stage B started the HR/Admin Control Room area with read-only `/admin/users` and `/admin/audit-log` pages and permission-driven navigation (ADR-050); the other areas are not built yet.
 
 **Decision.** Learner Portal (`/`, mobile-first), Manager Portal (`/manager`), HR/Admin Control Room (`/admin`), kiosk mode (`/kiosk`) and public verification (`/verify/:token`) are route areas with separate layouts in the existing React application, sharing the API client, i18n and components. Navigation is permission-driven.
 
 **Rejected alternative.** Separate frontend projects: duplicated tooling and i18n for no current benefit.
 
 ## ADR-032 — Employee ID login, kiosk-bound PIN, badge QR tokens, idle logout
-**Status:** Proposed (Stage B). Extends ADR-012.
+**Status:** Partially implemented in Stage B: server-enforced idle and absolute session expiry (ADR-043). Not implemented: kiosk PIN sign-in, kiosk registration and badge QR tokens (Q-08, Q-09 open); the personal-device credential (password today) and SSO remain open (Q-07). Accounts are not yet linked to employee codes (ADR-040). Extends ADR-012.
 
 **Decision.** Login identifier = employee code [C]. PIN sign-in only on administrator-registered kiosks holding a device token [C]/[P]. Badge QR encodes a revocable random token (hash stored), never the bare employee code; **badge identifies, PIN authenticates**; a badge alone opens no session (an authenticated trainer may scan badges for attendance). Automatic idle logout enforced server-side with client countdown (defaults: 30 min personal, 2 min kiosk) [C]/[P]. Re-authentication for sign-offs. Personal-device credential and SSO remain open (Q-07).
 
@@ -336,3 +347,177 @@ All ADR-022…039 are **Proposed**: designed in Stage A.1, implemented in the ro
 **Status:** Proposed (Stages E–H)
 
 **Decision.** Atomic cross-domain effects run as explicit service calls in the originating transaction; recalculations of derived caches run from in-process domain events after commit, idempotently. Scheduled work (expiry reminders, retraining, reinforcement, notifications, heavy report aggregates) runs in a separate worker process. The concrete library is chosen when first needed (no dependency added now).
+
+---
+
+# Stage B decisions (identity, access and audit)
+
+ADR-040…050 record what Stage B **implemented** (backend phases B0–B5, frontend B6). Earlier records they refine (ADR-008, 012, 023, 031, 032) keep their original text; only their status lines were updated. Parameters marked *configurable* are `LMS_` settings; their default values await business confirmation (Q-43).
+
+## ADR-040 — User accounts separate from employee identity
+**Status:** Accepted (Stage B)
+
+**Context.** Organisation and employee data arrive in Stage C/D, but administrators must be able to sign in before then. Stage A.1 requires that an account's access role is independent of the employee's job (ADR-023).
+
+**Decision.** A `user_account` is a system login identity, not an employee record. It has a `login_id` (1–64 characters, `[A-Za-z0-9._-]`, unique and case-insensitive through the column collation), a display name, an optional unique e-mail, a password hash, and a lifecycle status: `pending_activation`, `active`, `suspended` or `disabled`. A CHECK requires a password for active accounts. Accounts created by administrators start as `pending_activation` with a temporary password and `password_must_change`. Suspending or disabling an account revokes its sessions. There is **no employee column yet**: Stage C adds a nullable, unique `employee_id` without changing existing rows. ADR-032's convention that an employee's login identifier is the employee code is applied when employee accounts are provisioned (Stage C/D); it is not enforced in Stage B.
+
+**Consequences.** Accounts can exist before, or without, employee records (for example administrators). Designations, functional roles and job titles grant nothing.
+
+## ADR-041 — Migration/runtime credential separation; isolated, verified test database
+**Status:** Accepted (Stage B). Refines ADR-008 and ADR-009.
+
+**Decision.**
+- **Three MySQL accounts.** `lms_app` (runtime) has only `SELECT, INSERT, UPDATE, DELETE` on the LMS schema. `lms_migrator` (Alembic only) has DDL plus `TRIGGER` on the same schema. `lms_test` owns the automated-test schema.
+- **Separate settings.** `LMS_MIGRATION_DB_USER/PASSWORD` must differ from `LMS_DB_USER`. `alembic/env.py` refuses to run without migration credentials, never falls back to the runtime account, and checks `SELECT DATABASE()` against `LMS_DB_NAME` after connecting.
+- **Transaction ownership.** `env.py` commits the transaction that its pre-flight query auto-began. Otherwise Alembic treats the connection as externally managed and the final `alembic_version` update is rolled back. A regression test covers the CLI path.
+- **Automated database tests.** They run **only** against `crescent_lms_test`, as MySQL account `lms_test@127.0.0.1`. Every connection checks `SELECT DATABASE(), CURRENT_USER()` before running anything; the name must end in `_test`, differ from `LMS_DB_NAME`, and equal the pinned name. Settings come from `LMS_Backend/.env.test` (git-ignored). Unit tests never read `.env`.
+- **Test-schema rebuild.** Once per test session, the schema is rebuilt independently of leftover data. The rebuild drops every foreign key, then every table, in the verified test schema, then runs `upgrade head` → `downgrade base` → `upgrade head`. Each phase is its own transaction, and its **committed** state is verified on a separate connection.
+
+**Rejected alternatives.**
+- Running migrations as the runtime account: it would need DDL rights permanently.
+- Resetting with `downgrade base` alone: leftover rows that reference seed data (for example browser-test role grants) make it fail part-way, and MySQL DDL cannot be rolled back.
+
+**Consequences.** A compromised application cannot alter the schema. A failed rebuild cannot leave tests running on a partial schema, and the next run repairs it. Allowing any other test database or account needs a reviewed code change.
+
+## ADR-042 — Argon2id password hashing and password policy
+**Status:** Accepted (Stage B)
+
+**Decision.**
+- **Hashing.** Passwords are hashed with Argon2id using `argon2-cffi`'s defaults. Hashes are upgraded transparently on login when the parameters change (`needs_rehash`).
+- **Normalisation.** Passwords are NFKC-normalised before hashing and verification.
+- **Policy (NIST SP 800-63B style; no composition rules):**
+  - minimum length configurable, default 12 (`LMS_PASSWORD_MIN_LENGTH`);
+  - maximum 128;
+  - must not contain the login ID;
+  - must not be a single repeated character;
+  - must not be on a small common-password deny-list;
+  - a new password must differ from the current one.
+- **Timing.** Unknown login IDs are verified against a dummy hash, so response time does not reveal whether an account exists.
+- **Secrecy.** Passwords are `SecretStr` in request schemas, are never logged and never appear in audit metadata.
+
+**Consequences.** A memory-hard hash resists offline guessing. Policy failures return typed issue codes that the UI translates.
+
+## ADR-043 — Server-side sessions and session cookie
+**Status:** Accepted (Stage B). Implements the session part of ADR-012 and the idle logout of ADR-032.
+
+**Decision.**
+- **Token.** Sign-in creates a `user_session` with a 256-bit random token. Only its SHA-256 hash is stored.
+- **Cookie.** The token is sent in a cookie that is `HttpOnly`, `Path=/`, host-only, `SameSite=Lax` (configurable) and `Secure` (configurable; forced in production). The cookie is named `__Host-lms_session` when Secure and `lms_session` for local plain-http development.
+- **Expiry.**
+  - Idle expiry is configurable, default 30 minutes, and sliding: authenticated requests extend it, writing at most once per minute.
+  - Absolute expiry is configurable, default 12 hours.
+  - The public `GET /auth/session` check never extends the idle window.
+- **Rotation.** Signing in revokes any session cookie already presented, which prevents session fixation. Changing the password revokes all of the user's sessions and issues a new one.
+- **Revocation.** Administrators with `user_sessions.revoke` can revoke one or all sessions. Invalid or expired cookies are cleared.
+
+**Rejected alternative.** JWTs or tokens in browser storage (see ADR-012): exposed to XSS and hard to revoke.
+
+**Consequences.** Sessions can be ended instantly server-side. A database read on each authenticated request is acceptable at LMS scale.
+
+## ADR-044 — CSRF protection: trusted origins plus session-bound token
+**Status:** Accepted (Stage B). Implements the CSRF part of ADR-012.
+
+**Decision.** There are two layers.
+1. **Trusted origin.** `TrustedOriginMiddleware` rejects every POST/PUT/PATCH/DELETE whose `Origin` (or, failing that, `Referer`) is not in `LMS_TRUSTED_ORIGINS`, with `403 origin_not_allowed`. This also covers sign-in, which has no session yet (login CSRF).
+2. **Session-bound token.** Authenticated state-changing requests must send `X-CSRF-Token`, equal to HMAC-SHA256(`LMS_SECRET_KEY`, session-token hash) and compared in constant time; otherwise `403 csrf_failed`.
+
+The token is returned in the bodies of the sign-in, `GET /auth/session` and password-change responses. It changes whenever the session rotates. The frontend keeps it in memory only (ADR-050). CORS (ADR-011) is configured separately and is not relied on for CSRF.
+
+**Consequences.** No token storage server-side; a stolen token is useless without the matching session. Opening the app from an origin that is not listed makes sign-in fail until that origin is added.
+
+## ADR-045 — Database-backed login throttling
+**Status:** Accepted (Stage B)
+
+**Decision.**
+- **Counters.** Failed sign-ins and failed password changes are counted in `login_throttle`, per identifier and per client IP. Keys are HMACs, never raw login IDs or IPs.
+- **Limits** (all configurable): 5 failures per identifier or 20 per IP within 15 minutes trigger a 15-minute lockout, reported as `429 too_many_attempts`.
+- **Concurrency.** Rows are updated with `INSERT … ON DUPLICATE KEY UPDATE` plus `SELECT … FOR UPDATE`, so the limits hold across multiple worker processes without Redis.
+- **Enumeration.** Unknown login IDs are throttled like real ones.
+- **Separation.** Throttling is separate from account status: a lockout expires and never disables the account.
+
+**Consequences.** No extra infrastructure. Per-IP limits depend on the real client IP, so production behind a reverse proxy must run Uvicorn with `--proxy-headers --forwarded-allow-ips=<proxy>`.
+
+## ADR-046 — RBAC with permission codes; seeded roles; assignment guards
+**Status:** Accepted (Stage B). Implements the RBAC part of ADR-012 and the access-role part of ADR-023.
+
+**Decision.**
+- **Permissions.** 17 permission codes (`area.action`, for example `audit.view`). Three are privileged: `user_roles.assign_admin`, `access_roles.manage` and `settings.manage`.
+- **Roles.** Six system access roles: `employee`, `supervisor`, `hod`, `sme`, `hr_admin` and `super_admin`. They and their role–permission mapping are seeded by a **versioned data migration** (`0002`), not by application code.
+- **Enforcement.**
+  - Each route declares `require_permission(...)`, which is deny-by-default.
+  - A route-inventory test fails if any `/api/v1` route other than the public allow-list (health checks, `POST /auth/login`, `GET /auth/session`) lacks authentication.
+  - Denials return `403 forbidden` and are audited as `authorization.denied`.
+  - Accounts that must change their password get `403 password_change_required` on every permission-guarded route.
+- **Assignment guards.** These are data-driven: no role names in business logic.
+  - A role can be granted only if it is API-assignable and the actor holds its `assign_permission`, plus every permission the role carries (no escalation).
+  - Self-modification is refused.
+  - Accounts holding permissions the actor lacks cannot be managed.
+  - HR Admins can grant Employee, Supervisor, HOD and SME. Only Super Admins can grant HR Admin (`user_roles.assign_admin`).
+  - `super_admin` is never API-assignable (ADR-047).
+  - Privileged permissions cannot be added to non-Super-Admin roles.
+- **Deferred.** Organisation-unit scoping of role assignments is deferred to Stage C.
+
+**Consequences.** Permission sets can change through audited data, not code. The UI decides visibility from permission codes (ADR-050), while the API remains the only enforcement point.
+
+## ADR-047 — Super Admin bootstrap only through the CLI
+**Status:** Accepted (Stage B)
+
+**Decision.** There is no default administrator, no seeded credential and no HTTP bootstrap endpoint. `python -m app.cli create-super-admin --login-id … --display-name …`:
+- requires an interactive terminal;
+- shows the target host and database, which the operator must confirm by typing the database name;
+- reads the password twice with `getpass` (no echo) and applies the password policy;
+- in one transaction, locks the `super_admin` role row, refuses if any active Super Admin exists, creates an active account, grants the role and writes `super_admin.bootstrapped` (channel `cli`, OS operator).
+
+`grant-super-admin` and `revoke-super-admin` are the only ways to change Super Admin membership. Both are audited, and the last Super Admin cannot be revoked. The CLI uses the restricted runtime account, never the migration account.
+
+**Consequences.** Highest privilege needs shell access to the server plus the application configuration. Operators run the bootstrap themselves; credentials are never chosen by tooling.
+
+## ADR-048 — Audit event model and append-only protection
+**Status:** Accepted (Stage B)
+
+**Decision.**
+- **Model.** `audit_event` rows record time (UTC), event type, outcome (`success`/`failure`/`denied`), actor, target, request ID, source IP, user agent and JSON metadata.
+- **Atomicity.** Rows are written **in the same transaction** as the change they describe.
+- **Metadata guard.** Keys containing `password`, `token`, `secret`, `hash`, `csrf`, `cookie` or `credential` are rejected. Failed sign-ins for unknown login IDs store only an HMAC fingerprint.
+- **Read API.** The audit API is read-only, and every read is itself audited (`audit.events.viewed`).
+- **Append-only, three layers:**
+  1. no update or delete code paths or routes;
+  2. an ORM `before_flush` guard that raises on any modified or deleted audit event;
+  3. MySQL `BEFORE UPDATE` and `BEFORE DELETE` triggers that `SIGNAL SQLSTATE '45000'` (migration `0003`).
+
+  The triggers are created by `lms_migrator`. With binary logging enabled, MySQL requires either the SUPER/SET_USER_ID privilege or `log_bin_trust_function_creators=1` to create them.
+
+**Environment-specific requirement.** The **local development** MySQL instance uses `SET PERSIST log_bin_trust_function_creators = 1`, approved for local development only. **Production and any shared company database require a separate DBA decision** before migration `0003` can be applied there. No LMS account is granted SUPER or SET_USER_ID.
+
+**Limitations (by design, stated explicitly):**
+- The triggers stop UPDATE and DELETE only. **`TRUNCATE TABLE` and `DROP TABLE` bypass them.**
+- An account with DDL or TRIGGER rights (the migration account) can drop the triggers.
+- The audit trail is therefore **not universally tamper-proof**. It is protected against the application runtime account and against application bugs.
+- The **migration credentials are privileged and must be protected**: kept out of the runtime environment and used only for migrations.
+- Stronger guarantees (for example shipping events to an external write-once store) are future options, not implemented.
+
+**Consequences.** Retention periods for audit data remain open (Q-21).
+
+## ADR-049 — UUIDv7 public identifiers; internal keys never exposed
+**Status:** Accepted (Stage B). Implements ADR-038's identifier convention for identity and audit.
+
+**Decision.** Records exposed outside the database carry a `public_id` stored as `BINARY(16)` and generated as UUIDv7 (RFC 9562) by `app/core/ids.py`; Python 3.12/3.13 have no built-in generator. `BIGINT` primary keys are internal and never appear in API responses, URLs or audit targets.
+
+**Consequences.** Identifiers reveal neither row counts nor creation order of unrelated records, and the time-ordered prefix keeps index inserts efficient.
+
+## ADR-050 — Frontend authentication and session restoration
+**Status:** Accepted (Stage B6). Applies ADR-043/044 in the browser.
+
+**Decision.**
+- **Credentials.** The SPA never sees the session token; requests are same-origin with `credentials: 'same-origin'`. The CSRF token is held only in the API client's memory and sent on POST/PUT/PATCH/DELETE. On `403 csrf_failed` the client re-reads the session once and retries once.
+- **Restore and expiry.** `AuthProvider` restores user, permissions and CSRF token after a reload via `GET /auth/session`. It re-checks on window focus and when the server-reported expiry passes. An unreachable API is shown as an error, never as "signed out". A `401 unauthenticated` returns the user to sign-in.
+- **Sign-out.** Every cached query except health is purged.
+- **Routing.**
+  - Everything except `/login` requires a session.
+  - The post-login redirect comes only from router state and must be an internal path (no open redirect).
+  - Users who must change their password are held on `/change-password`.
+- **Permissions.** Screens and navigation check **permission codes**, never role names. This is a UX layer only; the API enforces every permission.
+- **Audit page.** Because every audit read is audited, the Audit Log page fetches only on open, filter, Refresh and Load more, never on window focus. Its request is not tied to the query's abort signal, so React StrictMode's development remount does not send a duplicate audited read.
+- **Storage.** `localStorage` holds only the language preference. Response parsers whitelist fields, so unexpected fields (for example a hash) never reach the cache or the UI.
+
+**Consequences.** Tokens are not exposed to scripts; multi-tab sign-in and sign-out converge through the focus re-check, the 401 handling and the CSRF retry.

@@ -1,20 +1,17 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { resources } from '../i18n'
 import { LANGUAGE_STORAGE_KEY } from '../i18n/languages'
-import { LIVE_OK, mockHealthApi, READY_OK, renderApp } from '../test/renderApp'
+import { EMPLOYEE, mockApi, mockSignedIn, renderApp } from '../test/renderApp'
 
 describe('LanguageSelector', () => {
-  beforeEach(() => {
-    mockHealthApi({ live: LIVE_OK, ready: { body: READY_OK, status: 200 } })
-  })
-
-  it('offers all four languages by their native names', () => {
+  it('offers all four languages by their native names', async () => {
+    mockSignedIn(EMPLOYEE)
     renderApp()
 
-    const select = screen.getByRole('combobox', { name: 'Language' })
+    const select = await screen.findByRole('combobox', { name: 'Language' })
     const options = within(select)
       .getAllByRole('option')
       .map((option) => option.textContent)
@@ -22,10 +19,11 @@ describe('LanguageSelector', () => {
   })
 
   it('switches the whole interface between English, Bengali, Hindi and Gujarati', async () => {
+    mockSignedIn(EMPLOYEE)
     const user = userEvent.setup()
     renderApp()
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
       resources.en.common.dashboard.title,
     )
 
@@ -38,6 +36,29 @@ describe('LanguageSelector', () => {
       expect(screen.getByRole('combobox', { name: strings.language.label })).toHaveValue(code)
       expect(document.documentElement.lang).toBe(code)
       expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe(code)
+    }
+  })
+
+  it('is available on the sign-in page and translates it', async () => {
+    mockApi()
+    const user = userEvent.setup()
+    renderApp('/login')
+
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+      resources.en.common.auth.login.title,
+    )
+
+    for (const code of ['bn', 'hi', 'gu'] as const) {
+      const strings = resources[code].common
+      await user.selectOptions(screen.getByRole('combobox'), code)
+
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(strings.auth.login.title)
+      expect(screen.getByLabelText(strings.auth.login.loginId)).toBeInTheDocument()
+      expect(screen.getByLabelText(strings.auth.login.password)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: strings.auth.login.submit }),
+      ).toBeInTheDocument()
+      expect(document.documentElement.lang).toBe(code)
     }
   })
 })

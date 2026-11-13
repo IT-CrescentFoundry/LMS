@@ -2,33 +2,38 @@ import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import {
+  EMPLOYEE,
   LIVE_OK,
-  mockHealthApi,
+  mockSignedIn,
   READY_NO_DATABASE,
   READY_OK,
   renderApp,
+  reply,
 } from '../../test/renderApp'
 
 /** Health-check integration: real API client and services, stubbed network. */
 describe('API connectivity', () => {
   it('shows "Connected" when the API is live and ready', async () => {
-    const fetchMock = mockHealthApi({ live: LIVE_OK, ready: { body: READY_OK, status: 200 } })
+    const api = mockSignedIn(EMPLOYEE)
     renderApp()
 
     const indicator = await screen.findByRole('status', { name: /API connection status: Connected$/ })
     expect(indicator).toHaveAttribute('data-state', 'online')
 
-    const panel = screen.getByRole('region', { name: 'System status' })
-    expect(within(panel).getByText('0.1.0')).toBeInTheDocument()
+    const panel = await screen.findByRole('region', { name: 'System status' })
+    expect(await within(panel).findByText('0.1.0')).toBeInTheDocument()
     expect(within(panel).getAllByText('Available')).toHaveLength(2)
 
-    const requestedUrls = fetchMock.mock.calls.map(([input]) => String(input))
-    expect(requestedUrls).toContain('/api/v1/health/live')
-    expect(requestedUrls).toContain('/api/v1/health/ready')
+    const paths = api.requests.map((request) => request.path)
+    expect(paths).toContain('/health/live')
+    expect(paths).toContain('/health/ready')
   })
 
   it('shows a degraded state when the database is not configured (readiness 503)', async () => {
-    mockHealthApi({ live: LIVE_OK, ready: { body: READY_NO_DATABASE, status: 503 } })
+    mockSignedIn(EMPLOYEE, {
+      'GET /health/live': reply(LIVE_OK),
+      'GET /health/ready': reply(READY_NO_DATABASE, 503),
+    })
     renderApp()
 
     const indicator = await screen.findByRole('status', {
@@ -41,7 +46,10 @@ describe('API connectivity', () => {
   })
 
   it('shows an offline state with a retry action when the API is unreachable', async () => {
-    mockHealthApi({ live: new TypeError('Failed to fetch') })
+    mockSignedIn(EMPLOYEE, {
+      'GET /health/live': new TypeError('Failed to fetch'),
+      'GET /health/ready': reply(READY_OK),
+    })
     renderApp()
 
     const indicator = await screen.findByRole('status', {

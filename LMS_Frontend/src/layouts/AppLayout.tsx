@@ -6,6 +6,7 @@ import { Outlet } from 'react-router'
 import { BrandMark } from '../components/BrandMark'
 import { ConnectivityIndicator } from '../components/ConnectivityIndicator'
 import { LanguageSelector } from '../components/LanguageSelector'
+import { UserMenu } from '../features/auth/UserMenu'
 import { SidebarNav } from './SidebarNav'
 
 /**
@@ -51,6 +52,7 @@ export function AppLayout() {
           <div className="ml-auto flex items-center gap-2 sm:gap-4">
             <ConnectivityIndicator />
             <LanguageSelector />
+            <UserMenu />
           </div>
         </div>
       </header>

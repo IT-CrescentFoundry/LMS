@@ -183,6 +183,14 @@ IDs are stable. Requirements revised in Stage A.1 keep their IDs; replaced IDs a
 | FR-IAM-007 | **QR badge** scanning identifies an employee at kiosks and for attendance; badge tokens are revocable and re-issuable. | [C] / tokens [P] |
 | FR-IAM-008 | Re-authentication (e.g. PIN) for acknowledgements and sign-offs. | [P]; acceptability [A] Q-24 |
 
+**Implementation status after Stage B.**
+- **FR-IAM-001** — partially implemented: sign-in with a login ID and password. Login IDs are not yet tied to employee codes; accounts are linked to employees in Stage C/D (ADR-040). The credential type stays open (Q-07).
+- **FR-IAM-002** — implemented for personal devices: server-side sessions, idle logout (default 30 min) and an absolute timeout (default 12 h) (ADR-043). Kiosk timeouts are not implemented.
+- **FR-IAM-003** — implemented: configurable access roles and permission codes, separate from functional roles (ADR-046).
+- **FR-IAM-004** — not implemented; organisation-unit scoping arrives in Stage C.
+- **FR-IAM-005** — implemented: append-only audit trail with a read-only, permission-guarded viewer (ADR-048, ADR-050).
+- **FR-IAM-006 to FR-IAM-008** — not implemented (Q-08, Q-09, Q-24).
+
 ### 7.3 Organisation and employees
 Detailed model: [organisation architecture](../architecture/ORGANISATION_ARCHITECTURE.md).
 
@@ -351,7 +359,20 @@ Architecture: [system architecture §12](../architecture/LMS_SYSTEM_ARCHITECTURE
 
 ## 13. Assumptions and open questions register
 
-Each item blocks only the features that reference it. "Origin" shows where the question arose.
+### 13.1 Source documents received
+
+Business source files are **never stored in the Git repository**. Layouts and values stated below are as described by Crescent Foundry and must be verified against the actual files (using synthetic copies for development and tests).
+
+| Source | Described content | Primary stage | In repository workspace | Open items |
+|---|---|---|---|---|
+| Bagnan skill matrices | Employee × skill levels on the 5-level Bagnan scale | F (import profile 2) | No | Q-02, Q-03 |
+| Individual development plans | Competency × employee matrices with indicators such as "Y", "US" | F (import profile 3) | No | Q-01, Q-03 |
+| Annual and safety training calendars (consolidated + departmental) | FY plans; substantial overlap between workbooks | E (import profiles 4, 5) | No | Q-04, Q-05 |
+| Attendance and historical training records | Event attendance, past training | E (import profile 6) | No | Q-06 |
+| Crescent certificate designs | Completion and appreciation certificate branding | J | No | Q-10 |
+| **`TC_Library_Crescent_Foundry_v1.xlsx`** (received during Stage B) | Technical competencies, functions, sub-functions, scope descriptions, proficiency levels, proposed grade-wise requirements, assessment methods, KRA mappings | **F** (competency library), then **G** (curriculum-to-competency mapping) | No | Q-35 – Q-42 |
+
+### 13.2 Questions and assumptions
 
 | ID | Question / assumption | Affects | Origin |
 |---|---|---|---|
@@ -361,9 +382,9 @@ Each item blocks only the features that reference it. "Origin" shows where the q
 | Q-04 | Layout of the annual training calendars (month columns vs dates, planned counts, hours), and **which workbook is authoritative** where consolidated and departmental workbooks overlap. | Import profile 4, calendar vs actual | A.1 |
 | Q-05 | Safety calendar specifics: links to statutory requirements, mandatory audiences, validity. | Import profile 5, compliance | A.1 |
 | Q-06 | Format and time span of historical attendance/training records to import. | Import profile 6 | A.1 |
-| Q-07 | Credential for personal-device sign-in (password, OTP) and whether staff need corporate SSO. | Identity | A, A.1 |
-| Q-08 | Existing ID badges: do they carry a QR/barcode, what does it encode, can badges be re-issued with LMS tokens? | Kiosk sign-in, attendance | A.1 |
-| Q-09 | Kiosk locations, supervision, PIN length and reset process. | Kiosks | A.1 |
+| Q-07 | Credential for personal-device sign-in (password, OTP) and whether staff need corporate SSO. *Stage B note: local passwords (Argon2id) are implemented as the baseline credential; OTP/SSO undecided — still open.* | Identity | A, A.1 |
+| Q-08 | Existing ID badges: do they carry a QR/barcode, what does it encode, can badges be re-issued with LMS tokens? *Stage B note: badge identification is not implemented; a QR code will never authenticate on its own — still open.* | Kiosk sign-in, attendance | A.1 |
+| Q-09 | Kiosk locations, supervision, PIN length and reset process. *Stage B note: kiosk registration and PIN sign-in are not implemented — still open.* | Kiosks | A.1 |
 | Q-10 | Certificate numbering format, authorised signatories, digital-signature needs; supply the Crescent certificate designs (completion, appreciation) in editable/vector form — they are **not** in the repository workspace. | Certification | A.1 |
 | Q-11 | Which certifications are **operational authorisations** (e.g. crane, forklift, furnace), statutory requirements and validity periods. | Compliance, certification | A, A.1 |
 | Q-12 | Definition of **CPD hours** (which activities count, caps, per-year targets). | Reports | A.1 |
@@ -389,6 +410,16 @@ Each item blocks only the features that reference it. "Origin" shows where the q
 | Q-32 | Official brand guidelines for the application (colours, logo files). | Frontend | A |
 | Q-33 | Existing induction and safety courses and their languages. | Catalogue | A |
 | Q-34 | Which compliance skills apply to which functional roles, responsibilities and locations. | Compliance | A.1 |
+| Q-35 | **TC Library — proficiency scale.** Does the library use the same 5-level Bagnan scale (Beginner … Can Train Others)? If not, which scale is authoritative per competency, and how are the libraries' "scope descriptions" mapped to level descriptors (FR-CMP-008)? | Competency framework, import | B |
+| Q-36 | **TC Library — functions and sub-functions.** Do they correspond to organisation units (departments/sections), job families, functional roles or only to competency categories? A mapping to the configurable organisation model is required; nothing is to be hardcoded. | Competency, organisation | B |
+| Q-37 | **TC Library — "proposed" grade-wise requirements.** Who approves them and when do they become effective? The LMS attaches requirements to functional roles (ADR-024); how do grades relate to designations and functional roles (see Q-30)? Proposed values must not be treated as approved requirements. | Role requirements, skill gap | B |
+| Q-38 | **TC Library — assessment methods.** Map the library's method vocabulary to LMS evidence types (theory assessment, practical validation/OJT, assessor rating, certification) and to competency achievement rules (FR-CMP-016). Which methods are mandatory per level? | Assessments, achievement rules | B |
+| Q-39 | **TC Library — KRA mappings.** KRAs belong to performance management (PMS). Should the LMS store KRA references only (no performance data), and who owns the mapping? Depends on Q-20. | Integration boundary, privacy | B |
+| Q-40 | **TC Library — identifiers and version control.** Are there stable, unique competency codes? How are revisions (v1 → v2) approved, dated and communicated? Duplicate or overlapping competencies must be detected, not silently merged. | Import, governance | B |
+| Q-41 | **TC Library vs Bagnan matrices and development plans.** Are they the same competency catalogue? Matrix column headers must map to library competencies through confirmed aliases (import profiles 2–3). | Import profiles 2–3 | B |
+| Q-42 | **TC Library — import route and languages.** A seventh import profile (competency library) is proposed for Stage F **[P]**. Is the library English-only; are Bengali/Hindi/Gujarati names and descriptions required for learners? | Import, i18n | B |
+| Q-43 | **Security parameters.** Confirm the implemented defaults (all configurable): idle session timeout 30 min, absolute session 12 h; minimum password length 12 (no composition rules); sign-in lockout after 5 failures per login ID or 20 per IP within 15 min, for 15 min. Should values differ for administrators? | Identity, security | B |
+| Q-44 | **Interim account provisioning.** Until accounts are created from employee records (Stages C/D), accounts can only be created through the permission-guarded admin API or, for Super Admins, the server CLI — there is no account-management screen yet. Who will operate this, and is a minimal management screen needed before Stage C? | Identity, operations | B |
 
 ## 14. Future enhancements register
 

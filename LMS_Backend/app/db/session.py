@@ -12,6 +12,7 @@ database.
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -28,9 +29,15 @@ class DatabaseNotConfiguredError(RuntimeError):
         )
 
 
-def create_mysql_engine(settings: Settings, *, use_null_pool: bool = False) -> Engine:
-    """Create (but do not connect) an engine for the configured LMS database."""
-    url = settings.database_url
+def create_mysql_engine(
+    settings: Settings, *, url: URL | None = None, use_null_pool: bool = False
+) -> Engine:
+    """Create (but do not connect) an engine for the configured LMS database.
+
+    ``url`` defaults to the runtime account. Alembic passes the migration URL so
+    that both share the same timeouts, charset and UTC session time zone.
+    """
+    url = url if url is not None else settings.database_url
     if url is None:
         raise DatabaseNotConfiguredError()
 

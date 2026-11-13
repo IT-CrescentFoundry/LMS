@@ -15,6 +15,8 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import Iterable
+from urllib.parse import urlsplit
 
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -37,6 +39,60 @@ SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
 
 # Probes are polled frequently; log them at DEBUG to keep INFO logs useful.
 _QUIET_PATH_SUFFIXES = ("/health/live", "/health/ready")
+
+
+UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _header(scope: Scope, name: bytes) -> str | None:
+    for key, value in scope.get("headers", []):
+        if key == name:
+            return str(value.decode("latin-1"))
+    return None
+
+
+def _request_origin(scope: Scope) -> str | None:
+    """The browser-supplied Origin, falling back to the origin part of Referer."""
+    origin = _header(scope, b"origin")
+    if origin and origin != "null":
+        return origin.rstrip("/").lower()
+    referer = _header(scope, b"referer")
+    if referer:
+        parts = urlsplit(referer)
+        if parts.scheme and parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}".lower()
+    return None
+
+
+class TrustedOriginMiddleware:
+    """CSRF layer 1: state-changing requests must come from a trusted origin.
+
+    Applies to every POST/PUT/PATCH/DELETE (including login, which has no session
+    yet). Requests without an Origin/Referer, or from any other origin, are
+    rejected with 403 ``origin_not_allowed``. Layer 2 (the session-bound CSRF
+    token) is enforced by the authentication dependency.
+    """
+
+    def __init__(self, app: ASGIApp, *, trusted_origins: Iterable[str]) -> None:
+        self.app = app
+        self._trusted = frozenset(origin.rstrip("/").lower() for origin in trusted_origins)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("method") in UNSAFE_METHODS:
+            origin = _request_origin(scope)
+            if origin is None or origin not in self._trusted:
+                logger.warning(
+                    "rejected state-changing request from untrusted origin",
+                    extra={"http_path": scope.get("path"), "origin": origin},
+                )
+                response = build_error_response(
+                    403,
+                    "The request origin is not allowed.",
+                    code="origin_not_allowed",
+                )
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
 
 
 def _incoming_request_id(scope: Scope) -> str | None:

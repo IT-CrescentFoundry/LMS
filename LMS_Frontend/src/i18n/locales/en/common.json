@@ -19,7 +19,9 @@
     "certifications": "Certifications",
     "organisation": "Organisation",
     "reports": "Reports & Analytics",
-    "administration": "Administration"
+    "administration": "Administration",
+    "users": "User accounts",
+    "auditLog": "Audit log"
   },
   "language": {
     "label": "Language"
@@ -74,15 +76,210 @@
       "offlineBody": "Check that the backend service is running, then try again."
     }
   },
+  "auth": {
+    "checkingSession": "Checking your session…",
+    "unavailableTitle": "Cannot reach the LMS",
+    "unavailableBody": "The sign-in service is not responding. Check your connection, then try again.",
+    "brand": {
+      "headline": "Learning that moves every role forward",
+      "tagline": "Sign in to continue your training, follow your progress and build verified skills."
+    },
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Use your LMS login ID and password.",
+      "loginId": "Login ID",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "loginIdRequired": "Enter your login ID.",
+      "passwordRequired": "Enter your password.",
+      "help": "Forgotten your password or locked out? Contact HR for help.",
+      "sessionExpired": "Your session has ended. Please sign in again.",
+      "signedOut": "You have signed out."
+    },
+    "errors": {
+      "title": "Sign-in failed",
+      "invalidCredentials": "The login ID or password is incorrect.",
+      "tooManyAttempts": "Too many unsuccessful attempts. Please wait a few minutes, then try again.",
+      "accountInactive": "This account is not active. Please contact HR.",
+      "originNotAllowed": "Sign-in is not allowed from this web address. Please contact IT support.",
+      "network": "Cannot reach the LMS. Check your connection, then try again.",
+      "generic": "Something went wrong. Please try again.",
+      "reference": "Reference: {{requestId}}"
+    },
+    "password": {
+      "show": "Show password",
+      "title": "Change password",
+      "subtitle": "Choose a new password for your account.",
+      "forcedNotice": "You must change your password before you can continue.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "hint": "Use a long password or passphrase. It must not contain your login ID or be a commonly used password.",
+      "submit": "Change password",
+      "submitting": "Changing password…",
+      "currentRequired": "Enter your current password.",
+      "newRequired": "Enter a new password.",
+      "confirmRequired": "Enter the new password again.",
+      "mismatch": "The new passwords do not match.",
+      "invalidCurrent": "The current password is incorrect.",
+      "failedTitle": "The password was not changed",
+      "policyTitle": "The new password does not meet the password policy:",
+      "issues": {
+        "too_short": "It is too short.",
+        "too_long": "It is too long.",
+        "contains_login_id": "It must not contain your login ID.",
+        "repeated_character": "It must not be one character repeated.",
+        "too_common": "It is too common. Choose a less predictable password.",
+        "same_as_current": "It must be different from your current password.",
+        "other": "It does not meet the password policy."
+      },
+      "successTitle": "Password changed",
+      "successBody": "Your password has been changed. Any other signed-in sessions have been signed out.",
+      "continue": "Continue to dashboard",
+      "back": "Back to dashboard"
+    },
+    "userMenu": {
+      "label": "Account menu for {{name}}",
+      "loginId": "Login ID",
+      "roles": "Access roles",
+      "noRoles": "No access roles",
+      "changePassword": "Change password",
+      "signOut": "Sign out",
+      "signingOut": "Signing out…",
+      "signOutFailed": "Could not sign out. Check your connection, then try again."
+    }
+  },
+  "roles": {
+    "employee": "Employee",
+    "supervisor": "Supervisor",
+    "hod": "Head of Department",
+    "sme": "Subject Matter Expert",
+    "hr_admin": "HR Admin",
+    "super_admin": "Super Admin"
+  },
+  "userStatus": {
+    "pending_activation": "Pending activation",
+    "active": "Active",
+    "suspended": "Suspended",
+    "disabled": "Disabled"
+  },
+  "admin": {
+    "readOnly": "Read only",
+    "applyFilters": "Apply filters",
+    "resetFilters": "Reset",
+    "noPermission": "You no longer have permission to view this information.",
+    "users": {
+      "title": "User accounts",
+      "subtitle": "Directory of LMS user accounts and their access roles.",
+      "search": "Search",
+      "searchPlaceholder": "Login ID or name",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "caption": "User accounts",
+      "columns": {
+        "name": "Name",
+        "loginId": "Login ID",
+        "email": "Email",
+        "status": "Status",
+        "roles": "Access roles",
+        "lastLogin": "Last sign-in",
+        "created": "Created"
+      },
+      "empty": "No user accounts match these filters.",
+      "count_one": "Showing {{count}} account",
+      "count_other": "Showing {{count}} accounts",
+      "loadError": "Could not load user accounts."
+    },
+    "audit": {
+      "title": "Audit log",
+      "subtitle": "Security-relevant events, newest first.",
+      "viewingRecorded": "Viewing the audit log is itself recorded in the audit log.",
+      "eventType": "Event type",
+      "allEventTypes": "All event types",
+      "outcome": "Outcome",
+      "allOutcomes": "All outcomes",
+      "from": "From date",
+      "to": "To date",
+      "invalidRange": "The start date must be on or before the end date.",
+      "caption": "Audit events",
+      "columns": {
+        "time": "Time",
+        "event": "Event",
+        "outcome": "Outcome",
+        "actor": "Performed by",
+        "target": "Target",
+        "details": "Details"
+      },
+      "showDetails": "Show details",
+      "hideDetails": "Hide details",
+      "details": {
+        "eventId": "Event ID",
+        "requestId": "Request ID",
+        "sourceIp": "Source IP address",
+        "userAgent": "Browser / device",
+        "metadata": "Additional information"
+      },
+      "noActor": "No signed-in user",
+      "empty": "No audit events match these filters.",
+      "count_one": "Showing {{count}} event",
+      "count_other": "Showing {{count}} events",
+      "loadError": "Could not load audit events.",
+      "loadedAt": "Loaded at {{time}}"
+    }
+  },
+  "audit": {
+    "events": {
+      "loginSucceeded": "Sign-in succeeded",
+      "loginFailed": "Sign-in failed",
+      "loginThrottled": "Sign-in blocked (too many attempts)",
+      "loginDeniedInactive": "Sign-in refused (inactive account)",
+      "logout": "Signed out",
+      "passwordChanged": "Password changed",
+      "passwordChangeFailed": "Password change failed",
+      "accountCreated": "Account created",
+      "accountUpdated": "Account updated",
+      "accountActivated": "Account activated",
+      "accountSuspended": "Account suspended",
+      "accountDisabled": "Account disabled",
+      "accountPasswordReset": "Password reset by an administrator",
+      "sessionRevoked": "Session revoked",
+      "sessionsRevokedAll": "All sessions revoked",
+      "roleGranted": "Access role granted",
+      "roleRevoked": "Access role revoked",
+      "rolePermissionGranted": "Permission added to a role",
+      "rolePermissionRevoked": "Permission removed from a role",
+      "superAdminBootstrapped": "Initial Super Admin created",
+      "superAdminGranted": "Super Admin granted",
+      "superAdminRevoked": "Super Admin revoked",
+      "authorizationDenied": "Access denied",
+      "auditViewed": "Audit log viewed"
+    },
+    "outcomes": {
+      "success": "Success",
+      "failure": "Failure",
+      "denied": "Denied"
+    },
+    "targetTypes": {
+      "user_account": "User account",
+      "user_session": "Session",
+      "access_role": "Access role"
+    }
+  },
   "common": {
     "loading": "Loading…",
-    "retry": "Try again"
+    "retry": "Try again",
+    "loadMore": "Load more",
+    "refresh": "Refresh",
+    "never": "Never"
   },
   "errors": {
     "notFoundTitle": "Page not found",
     "notFoundBody": "The page you are looking for does not exist or has moved.",
     "backToDashboard": "Back to dashboard",
     "unexpectedTitle": "Something went wrong",
-    "unexpectedBody": "An unexpected error occurred. Please try again."
+    "unexpectedBody": "An unexpected error occurred. Please try again.",
+    "forbiddenTitle": "You do not have access to this page",
+    "forbiddenBody": "Your access role does not include permission to view this page. Contact your administrator if you need access."
   }
 }

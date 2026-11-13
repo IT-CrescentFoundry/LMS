@@ -29,6 +29,18 @@
   --color-ember-400: #f59e42;
   --color-ember-500: #e8791c;
   --color-ember-600: #c75f0e;
+
+  /*
+   * Secondary brand colour (provisional). Use on navy surfaces - accents,
+   * rules, focus rings. Never as text on white: the contrast is too low.
+   */
+  --color-gold-50: #fdf8e8;
+  --color-gold-100: #faefc6;
+  --color-gold-200: #f5df8d;
+  --color-gold-300: #efcb55;
+  --color-gold-400: #e5b52b;
+  --color-gold-500: #c99a12;
+  --color-gold-600: #a27a0c;
 }
 
 @layer base {

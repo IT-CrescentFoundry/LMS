@@ -1,40 +1,46 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { LIVE_OK, mockHealthApi, READY_OK, renderApp } from '../test/renderApp'
+import {
+  EMPLOYEE,
+  HR_ADMIN,
+  mockSignedIn,
+  renderApp,
+  reply,
+  SUPER_ADMIN,
+} from '../test/renderApp'
 
 describe('AppLayout', () => {
-  beforeEach(() => {
-    mockHealthApi({ live: LIVE_OK, ready: { body: READY_OK, status: 200 } })
-  })
-
-  it('renders branding, navigation and the dashboard', () => {
+  it('renders branding, navigation, the user and the dashboard', async () => {
+    mockSignedIn(EMPLOYEE)
     renderApp()
 
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Welcome to Crescent Foundry LMS' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Crescent Foundry')).toBeInTheDocument()
     expect(screen.getByText('Learning Management System')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
       'href',
       '#main-content',
     )
+    expect(screen.getByRole('button', { name: 'Account menu for Test Employee' })).toBeInTheDocument()
 
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
     expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Welcome to Crescent Foundry LMS',
-    )
   })
 
-  it('shows planned modules as non-interactive placeholders', () => {
+  it('shows planned modules as non-interactive placeholders', async () => {
+    mockSignedIn(EMPLOYEE)
     renderApp()
 
-    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
     expect(within(nav).getAllByRole('link')).toHaveLength(1)
 
     const plannedGroup = within(nav).getByRole('list', { name: 'Coming soon' })
     const plannedItems = within(plannedGroup).getAllByRole('listitem')
-    expect(plannedItems).toHaveLength(9)
+    expect(plannedItems).toHaveLength(8)
     for (const item of plannedItems) {
       expect(item).toHaveAttribute('aria-disabled', 'true')
       expect(within(item).queryByRole('link')).not.toBeInTheDocument()
@@ -42,11 +48,51 @@ describe('AppLayout', () => {
     expect(within(plannedGroup).getByText('Course Catalogue')).toBeInTheDocument()
   })
 
+  it('shows an employee no Administration group', async () => {
+    mockSignedIn(EMPLOYEE)
+    renderApp()
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).queryByRole('list', { name: 'Administration' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'User accounts' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['HR Admin', HR_ADMIN],
+    ['Super Admin', SUPER_ADMIN],
+  ])('shows %s the Administration pages they are permitted to use', async (_label, user) => {
+    mockSignedIn(user)
+    renderApp()
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    const adminGroup = within(nav).getByRole('list', { name: 'Administration' })
+    expect(within(adminGroup).getByRole('link', { name: 'User accounts' })).toHaveAttribute(
+      'href',
+      '/admin/users',
+    )
+    expect(within(adminGroup).getByRole('link', { name: 'Audit log' })).toHaveAttribute(
+      'href',
+      '/admin/audit-log',
+    )
+  })
+
+  it('shows only the items matching each permission (no role-name checks)', async () => {
+    mockSignedIn({ ...EMPLOYEE, roles: ['custom_role'], permissions: ['audit.view'] })
+    renderApp()
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    const adminGroup = within(nav).getByRole('list', { name: 'Administration' })
+    expect(within(adminGroup).getAllByRole('link')).toHaveLength(1)
+    expect(within(adminGroup).getByRole('link', { name: 'Audit log' })).toBeInTheDocument()
+  })
+
   it('opens and closes the mobile navigation drawer', async () => {
+    mockSignedIn(EMPLOYEE)
     const user = userEvent.setup()
     renderApp()
 
-    const openButton = screen.getByRole('button', { name: 'Open navigation menu' })
+    const openButton = await screen.findByRole('button', { name: 'Open navigation menu' })
     expect(openButton).toHaveAttribute('aria-expanded', 'false')
 
     await user.click(openButton)
@@ -62,10 +108,19 @@ describe('AppLayout', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('shows a translated not-found page for unknown routes', () => {
+  it('shows a translated not-found page for unknown routes when signed in', async () => {
+    mockSignedIn(EMPLOYEE)
     renderApp('/no-such-page')
 
-    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to dashboard' })).toHaveAttribute('href', '/')
+  })
+
+  it('does not reveal unknown routes to anonymous visitors (sign-in first)', async () => {
+    mockSignedIn(EMPLOYEE, { 'GET /auth/session': reply({ authenticated: false }) })
+    renderApp('/no-such-page')
+
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
   })
 })

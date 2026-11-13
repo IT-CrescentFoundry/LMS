@@ -7,10 +7,14 @@ import {
   LayoutDashboard,
   Network,
   Route,
-  Settings,
+  ScrollText,
   Sparkles,
+  Users,
   type LucideIcon,
 } from 'lucide-react'
+
+import { hasPermission, PERMISSIONS, type PermissionCode } from '../features/auth/permissions'
+import type { CurrentUser } from '../types/auth'
 
 export type NavLabelKey =
   | 'nav.dashboard'
@@ -22,7 +26,8 @@ export type NavLabelKey =
   | 'nav.certifications'
   | 'nav.organisation'
   | 'nav.reports'
-  | 'nav.administration'
+  | 'nav.users'
+  | 'nav.auditLog'
 
 export interface NavItem {
   id: string
@@ -31,23 +36,52 @@ export interface NavItem {
   /** Route path. Planned items have no route yet. */
   to?: string
   status: 'available' | 'planned'
+  group: 'main' | 'administration'
+  /**
+   * Hide the item from users without this permission. This is a convenience
+   * only: the page and its API enforce the permission themselves.
+   */
+  requiredPermission?: PermissionCode
 }
 
 /**
- * Main navigation. Only the dashboard exists in Stage A; the remaining entries
- * are placeholders for modules in the implementation roadmap and are rendered
- * as non-interactive "coming soon" items. Role-based visibility arrives with
- * authentication (Stage B).
+ * Main navigation. Planned entries are placeholders for modules in the
+ * implementation roadmap and are rendered as non-interactive "coming soon"
+ * items. Administration entries appear only for users holding the permission.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, to: '/', status: 'available' },
-  { id: 'my-learning', labelKey: 'nav.myLearning', icon: GraduationCap, status: 'planned' },
-  { id: 'courses', labelKey: 'nav.courses', icon: BookOpen, status: 'planned' },
-  { id: 'assessments', labelKey: 'nav.assessments', icon: ClipboardCheck, status: 'planned' },
-  { id: 'competencies', labelKey: 'nav.competencies', icon: Sparkles, status: 'planned' },
-  { id: 'career', labelKey: 'nav.career', icon: Route, status: 'planned' },
-  { id: 'certifications', labelKey: 'nav.certifications', icon: Award, status: 'planned' },
-  { id: 'organisation', labelKey: 'nav.organisation', icon: Network, status: 'planned' },
-  { id: 'reports', labelKey: 'nav.reports', icon: ChartColumn, status: 'planned' },
-  { id: 'administration', labelKey: 'nav.administration', icon: Settings, status: 'planned' },
+  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, to: '/', status: 'available', group: 'main' },
+  {
+    id: 'users',
+    labelKey: 'nav.users',
+    icon: Users,
+    to: '/admin/users',
+    status: 'available',
+    group: 'administration',
+    requiredPermission: PERMISSIONS.USER_ACCOUNTS_VIEW,
+  },
+  {
+    id: 'audit-log',
+    labelKey: 'nav.auditLog',
+    icon: ScrollText,
+    to: '/admin/audit-log',
+    status: 'available',
+    group: 'administration',
+    requiredPermission: PERMISSIONS.AUDIT_VIEW,
+  },
+  { id: 'my-learning', labelKey: 'nav.myLearning', icon: GraduationCap, status: 'planned', group: 'main' },
+  { id: 'courses', labelKey: 'nav.courses', icon: BookOpen, status: 'planned', group: 'main' },
+  { id: 'assessments', labelKey: 'nav.assessments', icon: ClipboardCheck, status: 'planned', group: 'main' },
+  { id: 'competencies', labelKey: 'nav.competencies', icon: Sparkles, status: 'planned', group: 'main' },
+  { id: 'career', labelKey: 'nav.career', icon: Route, status: 'planned', group: 'main' },
+  { id: 'certifications', labelKey: 'nav.certifications', icon: Award, status: 'planned', group: 'main' },
+  { id: 'organisation', labelKey: 'nav.organisation', icon: Network, status: 'planned', group: 'main' },
+  { id: 'reports', labelKey: 'nav.reports', icon: ChartColumn, status: 'planned', group: 'main' },
 ]
+
+/** Items the user may see (UI visibility only; see `requiredPermission`). */
+export function visibleNavItems(user: CurrentUser | null): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) => item.requiredPermission === undefined || hasPermission(user, item.requiredPermission),
+  )
+}

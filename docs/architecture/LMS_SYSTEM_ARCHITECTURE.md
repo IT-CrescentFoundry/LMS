@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Stage A implemented the foundation; Stage A.1 aligned the architecture with the extended business requirements. Sections are marked **Implemented** or **Planned**; planned items are designs, not working features. |
+| **Status** | Stage A implemented the foundation; Stage A.1 aligned the architecture with the extended business requirements; **Stage B implemented identity, authentication, sessions, CSRF protection, access roles and permissions, and the audit trail (backend and frontend)**. Sections are marked **Implemented** or **Planned**; planned items are designs, not working features. |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
-| **Related** | [Product requirements](../product/LMS_PRODUCT_REQUIREMENTS.md) · [Competency & compliance](../product/COMPETENCY_AND_COMPLIANCE_REQUIREMENTS.md) · [Training operations](../product/TRAINING_OPERATIONS_REQUIREMENTS.md) · [Organisation architecture](ORGANISATION_ARCHITECTURE.md) · [Database design](../database/LMS_DATABASE_DESIGN.md) · [Import profiles](../database/EXCEL_IMPORT_PROFILES.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) · [Roadmap](../LMS_IMPLEMENTATION_ROADMAP.md) |
+| **Related** | [Product requirements](../product/LMS_PRODUCT_REQUIREMENTS.md) · [Competency & compliance](../product/COMPETENCY_AND_COMPLIANCE_REQUIREMENTS.md) · [Training operations](../product/TRAINING_OPERATIONS_REQUIREMENTS.md) · [Organisation architecture](ORGANISATION_ARCHITECTURE.md) · [Database design](../database/LMS_DATABASE_DESIGN.md) · [Import profiles](../database/EXCEL_IMPORT_PROFILES.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) · [API reference](API_REFERENCE.md) · [Roadmap](../LMS_IMPLEMENTATION_ROADMAP.md) |
 
 ---
 
@@ -61,26 +61,27 @@ LMS/
 └── README.md            setup and development guide
 ```
 
-## 4. Frontend architecture — *Implemented (shell)*
+## 4. Frontend architecture — *Implemented (shell, sign-in, read-only administration)*
 
 **Stack:** React 19, TypeScript 6, Vite 8, Tailwind CSS 4 (via `@tailwindcss/vite`), React Router 8, TanStack Query 5, i18next 27 + react-i18next 18, Lucide icons. Tests: Vitest 5, React Testing Library, jsdom.
 
 ```text
 src/
-├── app/            providers (TanStack Query), router (route table), navigation model
-├── layouts/        AppLayout (header, sidebar, mobile drawer), SidebarNav
-├── features/       dashboard/, system-status/, errors/
-├── components/     BrandMark, LanguageSelector, ConnectivityIndicator, LoadingState, ErrorState
+├── app/            providers (TanStack Query + AuthProvider), router (route table), navigation model
+├── layouts/        AppLayout (header, sidebar, mobile drawer, user menu), SidebarNav, AuthLayout
+├── features/       auth/ (session, guards, sign-in, change password), admin/ (users, audit log),
+│                   dashboard/, system-status/, errors/
+├── components/     BrandMark, LanguageSelector, ConnectivityIndicator, Loading/Error states, badges
 ├── hooks/          cross-feature hooks (none yet)
-├── services/       typed API functions per backend area (healthService)
-├── lib/            apiClient (typed fetch wrapper), config (env validation)
+├── services/       typed API functions per backend area (health, auth, admin)
+├── lib/            apiClient (typed fetch, ApiError, in-memory CSRF token), parse, format, config
 ├── i18n/           i18next setup, language registry, locales/{en,bn,hi,gu}
 ├── styles/         Tailwind entry + design tokens (@theme)
 ├── types/          shared TypeScript types (API contracts, env)
 └── test/           test setup and render helpers
 ```
 
-**Data flow:** component → feature hook (TanStack Query) → service → `apiRequest` → `fetch`; every response passes a runtime `parse` function. **State:** server state in TanStack Query; UI state local; no global store yet. **Errors/loading:** `ApiError` (network, timeout, http, invalid_response) with backend code and request ID; shared `LoadingState`/`ErrorState`; router error boundary. **API configuration:** `VITE_API_BASE_URL` (default `/api/v1`), dev/preview proxy to the backend (ADR-011). **Responsive:** drawer navigation below `lg`, sidebar at `lg`+; verified at 360/390 px in all four languages. **Accessibility baseline:** landmarks, skip link, labelled controls, `aria-live` status, keyboard-operable drawer.
+**Data flow:** component → feature hook (TanStack Query) → service → `apiRequest` → `fetch`; every response passes a runtime `parse` function. **State:** server state in TanStack Query; UI state local; no global store yet. **Errors/loading:** `ApiError` (network, timeout, http, invalid_response) with backend code and request ID; shared `LoadingState`/`ErrorState`; router error boundary. **API configuration:** `VITE_API_BASE_URL` (default `/api/v1`), dev/preview proxy to the backend (ADR-011). **Responsive:** drawer navigation below `lg`, sidebar at `lg`+; administration tables stack into labelled cards on narrow screens; verified in a real browser at 360/390/768/1024/1280 px in all four languages. **Authentication (Stage B, ADR-050):** HttpOnly session cookie (never visible to scripts), CSRF token in memory only, session restored through `GET /api/v1/auth/session`, route guards (`RequireAuth`, `PublicOnlyRoute`, `RequirePermission`), navigation driven by permission codes as a UX layer only — the API enforces every permission. **Accessibility baseline:** landmarks, skip link, labelled controls, `aria-live` status, keyboard-operable drawer.
 
 ### 4.1 Planned experiences — *Planned* (ADR-031)
 
@@ -94,24 +95,29 @@ Three experiences plus kiosk mode, as route areas of the one SPA, each with its 
 | Kiosk mode | `/kiosk` | Large touch targets, badge scan + PIN sign-in, visible idle countdown | Registered kiosk devices |
 | Certificate verification | `/verify/:token` | Public, minimal | Anyone with a certificate QR |
 
-Visible areas and navigation come from the signed-in user's **access-role permissions** (`/api/v1/me`, Stage B). The Stage A shell's placeholder navigation will be restructured into these areas then; no frontend code changed in Stage A.1.
+Visible areas and navigation come from the signed-in user's **access-role permissions**, returned by `GET /api/v1/auth/session` (and `GET /api/v1/auth/me`). **Stage B** built the start of the HR/Admin Control Room — read-only `/admin/users` and `/admin/audit-log` — plus `/login` and `/change-password`. The other areas remain planned; the remaining navigation entries are non-interactive "coming soon" placeholders.
 
 ## 5. Backend architecture
 
-**Stack:** Python ≥ 3.12 (developed on 3.13), FastAPI 0.162, Starlette 1.10, Pydantic 2.14, Pydantic Settings 2.16, SQLAlchemy 2.1, Alembic 1.20, PyMySQL 1.2, Uvicorn 0.54; Pytest 9, HTTPX 2; Ruff, mypy (strict).
+**Stack:** Python ≥ 3.12 (developed on 3.13), FastAPI 0.162, Starlette 1.10, Pydantic 2.14, Pydantic Settings 2.16, SQLAlchemy 2.1, Alembic 1.20, PyMySQL 1.2, argon2-cffi 25.1, Uvicorn 0.54; Pytest 9, HTTPX 2; Ruff, mypy (strict).
 
 ### 5.1 Layers — *Implemented*
 
 ```text
 app/
 ├── main.py        create_app() factory: settings, logging, middleware, routers, lifespan
+├── cli.py         administrative CLI (create/grant/revoke Super Admin; ADR-047)
 ├── core/          config, logging (JSON/console), middleware (request ID, security headers,
-│                  access log, 500 handling), errors
-├── api/           router.py (mounted at /api/v1), deps.py, routes/ (health.py)
-├── services/      business logic (health_service.py)
-├── schemas/       Pydantic request/response models
-├── models/        SQLAlchemy ORM models (none in Stage A)
-└── db/            declarative base + naming convention, engine/session management
+│                  trusted-origin CSRF check, access log, 500 handling), errors (AppError),
+│                  ids (UUIDv7), context (request metadata), security/ (passwords, tokens)
+├── api/           router.py (mounted at /api/v1), deps.py (session, CSRF, require_permission),
+│                  cookies, presenters, routes/ (health, auth, admin_users, admin_access, admin_audit)
+├── services/      health, audit_service + audit_queries, identity/ (authentication, sessions,
+│                  throttling, accounts, access_control, permissions, bootstrap, context)
+├── schemas/       Pydantic request/response models (auth, users, access, audit, pagination)
+├── models/        SQLAlchemy ORM models: identity.py (accounts, roles, permissions, sessions,
+│                  throttling), audit.py (audit_event + append-only ORM guard)
+└── db/            declarative base + naming convention, engine/session management, column types
 ```
 
 ### 5.2 Planned domain modules — *Planned* (revised in A.1)
@@ -120,8 +126,8 @@ Each domain adds sub-packages in `models/`, `schemas/`, `services/` and a module
 
 | Module | Responsibility | Stage |
 |---|---|---|
-| `identity` | User accounts, credentials (password, kiosk PIN), badges, kiosks, login sessions, **access roles**, scoped permissions | B |
-| `audit` | Append-only audit trail | B |
+| `identity` | **Implemented (Stage B):** user accounts, passwords, login sessions, throttling, **access roles** and permissions. **Planned:** kiosk PIN, badges, kiosks (Q-08, Q-09); organisation-scoped role assignments (C) | B (scoping C) |
+| `audit` | **Implemented (Stage B):** append-only audit trail (ADR-048) | B |
 | `organisation` | Units, types, plants/locations, job families, designations, positions, **functional roles**, **responsibilities**, employees, assignments, reporting | C |
 | `imports` | Import framework and profiles 1–6 | D (framework), E, F |
 | `training_ops` | FY calendars, planned activities, programmes, events, batches, sessions, venues, trainers, vendors, nominations, attendance, finalisation, hours, training requests, historical records | E |
@@ -273,14 +279,14 @@ See [EXCEL_IMPORT_PROFILES.md](../database/EXCEL_IMPORT_PROFILES.md) (ADR-029, A
 | Errors | `{"error": {"code", "message", "details"?, "request_id"}}`; submitted values never echoed. | Implemented |
 | Request ID | `X-Request-ID` accepted if well-formed, else generated; returned and logged. | Implemented |
 | Timestamps | ISO 8601 UTC; dates `YYYY-MM-DD`. | Implemented |
-| Docs | `/api/v1/openapi.json`, `/api/docs`; off by default in production. | Implemented |
+| Docs | `/api/v1/openapi.json`, `/api/docs`; off by default in production. Human-readable endpoint list: [API reference](API_REFERENCE.md). | Implemented |
 | Caching | `Cache-Control: no-store` by default. | Implemented |
-| Pagination | `limit` + opaque `cursor`. | Planned |
-| Filtering/sorting | Explicit allow-listed parameters. | Planned |
+| Pagination | `limit` + opaque `cursor`; `{items, next_cursor}`, newest first. | Implemented (admin lists) |
+| Filtering/sorting | Explicit allow-listed parameters. | Filtering implemented (admin lists); sorting planned |
 | Language | `Accept-Language` for messages and content selection. | Planned |
 | Idempotency | `Idempotency-Key` for import commits, finalisation, issuance. | Planned |
-| Optimistic concurrency | Resource `version` required on update. | Planned |
-| Public endpoints | Only `/api/v1/public/*` (certificate verification), rate-limited. | Planned |
+| Optimistic concurrency | Resource `version` required on update. | Planned for the API; identity tables already carry `version` (ORM optimistic locking) |
+| Public endpoints | Allow-list enforced by a route-inventory test: `/health/*`, `POST /auth/login`, `GET /auth/session`. Planned addition: `/api/v1/public/*` (certificate verification), rate-limited. | Implemented / Planned |
 | Integration endpoints | `/api/v1/integration/*` for service accounts (future PMS). | Planned [F] |
 
 ## 8. Health checks — *Implemented*
@@ -294,33 +300,60 @@ Failure details are logged server-side only; probes log at DEBUG. Planned: migra
 
 ## 9. Internationalisation — *Implemented (UI framework)*
 
-en/bn/hi/gu with English fallback; preference → browser → English; `<html lang>` follows; type-checked keys and a key-parity test; system font stack for Indic scripts. Stage A translations are drafts pending native review. Learning content, question, checklist, certificate and skill-level translations are data (translation tables) with per-language status. **[C]** / **[P]**
+en/bn/hi/gu with English fallback; preference → browser → English; `<html lang>` follows; type-checked keys and a key-parity test; system font stack for Indic scripts. Stage A and Stage B translations (including the sign-in, password and administration screens) are drafts pending native-speaker review. Learning content, question, checklist, certificate and skill-level translations are data (translation tables) with per-language status. **[C]** / **[P]**
 
 ## 10. Configuration and logging — *Implemented*
 
-`LMS_`-prefixed settings validated at start-up (partial DB settings, wildcard CORS and malformed prefixes rejected; production requires a database and disables docs). `VITE_*` frontend variables validated; never secret. JSON/console structured logging with request IDs; no secrets, tokens or personal data in logs.
+`LMS_`-prefixed settings validated at start-up (partial DB settings, wildcard CORS and malformed prefixes rejected; production requires a database and disables docs). Stage B adds required `LMS_SECRET_KEY` (at least 32 characters) and `LMS_TRUSTED_ORIGINS`; session, password and throttling settings with defaults; and `LMS_MIGRATION_DB_USER`/`LMS_MIGRATION_DB_PASSWORD`, which must differ from the runtime account. Production requires Secure cookies and https origins. Configuration errors name the variable, never its value. `VITE_*` frontend variables validated; never secret. JSON/console structured logging with request IDs; no secrets, tokens or personal data in logs.
 
 ## 11. Security architecture
 
-### 11.1 Implemented in Stage A
-No secrets or real data in the repository; `.env` ignored; `SecretStr` DB password; explicit CORS allow-list; security headers (`nosniff`, `DENY`, `no-referrer`, `no-store`); no echo of submitted values; generic 500s; validated request IDs; docs off in production; Alembic safety guards. **No authentication exists yet**; only health endpoints are exposed.
+### 11.1 Implemented controls (Stages A–B)
 
-### 11.2 Planned: authentication and login sessions (Stage B) — ADR-012, ADR-032
-- **Employee ID login** **[C]**: `login_id` = employee code. Personal-device credential: password (Argon2id, rate limiting, lockout) **[P]**; OTP or corporate SSO for staff **[A] Q-07**.
-- **Server-side login sessions**: opaque ≥ 256-bit token in an `HttpOnly`, `Secure`, `SameSite` cookie (`__Host-` prefix in production); only the token hash stored; rotation on login/privilege change; server-side revocation. **[P]**
-- **Automatic idle logout** **[C]**: server-enforced idle expiry plus a client countdown; defaults 30 min (personal) and 2 min (kiosk), configurable. **[P]**
-- **Kiosk mode** **[C]** / controls **[P]**: kiosks are **registered** by an administrator, receiving a device token (HttpOnly cookie) bound to `kiosk_device`. **PIN sign-in is accepted only with a valid kiosk device token.** Sign-in = **badge QR scan** (camera or scanner) or typed employee ID, **plus PIN**. Sessions are bound to the kiosk; explicit sign-out; no personal data persisted on the device (no-store responses, query cache cleared on logout, no offline caching of API data). PIN policy [A] Q-09.
-- **QR badges** **[C]** / tokens **[P]**: the badge QR encodes an **opaque random token**, not the employee code; stored hashed; revocable and re-issuable. **A badge identifies; it never authenticates alone.** Exception: an authenticated trainer's device may scan attendee badges to record attendance, the trainer being accountable. Badge format [A] Q-08.
+| Area | What is implemented | Decision |
+|---|---|---|
+| Secrets and data | No secrets or real employee data in the repository; `.env` and `.env.test` git-ignored; passwords and keys held as `SecretStr`; submitted values never echoed in errors; generic 500 responses; configuration errors name variables, never values; API docs off in production. | ADR-009, ADR-017 |
+| Headers and origin | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store` on every response; explicit CORS allow-list; one origin for SPA and API. | ADR-011, ADR-016 |
+| Accounts | `user_account` is a login identity separate from employee records; lifecycle `pending_activation` → `active` → `suspended`/`disabled`; suspending or disabling revokes sessions; administrators' new accounts must change their temporary password. | ADR-040 |
+| Passwords | Argon2id (`argon2-cffi`), NFKC normalisation, policy without composition rules (configurable minimum, default 12; maximum 128; no login ID; no single repeated character; common-password deny-list), dummy-hash timing parity for unknown IDs, transparent rehash. | ADR-042 |
+| Sessions | Server-side `user_session`; 256-bit token in an HttpOnly, host-only, `SameSite=Lax` cookie (`__Host-lms_session` when Secure; Secure forced in production); only the SHA-256 hash stored; idle 30 min (sliding) and absolute 12 h by default; rotation on sign-in and password change; administrator revocation. | ADR-043 |
+| CSRF | Layer 1: every POST/PUT/PATCH/DELETE must come from an origin in `LMS_TRUSTED_ORIGINS` (covers sign-in). Layer 2: session-bound HMAC token in `X-CSRF-Token` for authenticated state changes; constant-time comparison. | ADR-044 |
+| Brute force | Database-backed throttling per identifier (5) and per IP (20) within 15 min, 15 min lockout, HMAC-keyed rows, row locks; unknown IDs throttled identically. | ADR-045 |
+| Authorisation | Deny-by-default `require_permission`; 17 permission codes, 6 seeded access roles; route-inventory test for unprotected routes; assignment guards (assign permission, no escalation, no self-modification, no managing more-privileged accounts); denials audited; must-change-password gate. Functional roles and designations grant nothing. | ADR-046, ADR-023 |
+| Highest privilege | Super Admin created, granted and revoked **only** through the interactive CLI (typed database confirmation, `getpass`, row lock, refuses a second bootstrap, keeps at least one Super Admin); all audited. | ADR-047 |
+| Audit | `audit_event` written in the same transaction as the change; secret-like metadata keys rejected; append-only through code paths, an ORM `before_flush` guard and MySQL `BEFORE UPDATE`/`BEFORE DELETE` triggers; reads of the audit log are themselves audited. | ADR-048 |
+| Database accounts | Runtime `lms_app`: `SELECT, INSERT, UPDATE, DELETE` only. Migrations: `lms_migrator` (DDL + `TRIGGER`), never the runtime account, no fallback database, `DATABASE()` verified. Automated tests: only `crescent_lms_test` as `lms_test@127.0.0.1`, verified on every connection. | ADR-041 |
+| Frontend | Session token never visible to scripts; CSRF token in memory only; web storage holds only the language preference; response fields whitelisted; no open redirect after sign-in; permission-gated screens are a UX layer only. | ADR-050 |
+
+### 11.2 Audit protection — environment requirements and limitations
+
+- **Trigger prerequisite.** With binary logging enabled, MySQL lets a non-SUPER account create triggers only when `log_bin_trust_function_creators = 1`. The **local development** instance uses `SET PERSIST log_bin_trust_function_creators = 1`, approved for local development only. **Production and any shared company database require a separate DBA decision** before migration `0003` is applied there. No LMS account is granted SUPER or SET_USER_ID.
+- **What the triggers do not stop.** They reject `UPDATE` and `DELETE` on `audit_event`; they do **not** prevent `TRUNCATE TABLE` or `DROP TABLE`, and an account with DDL/`TRIGGER` rights can drop them. The audit trail is therefore protected against the application runtime account and application defects — it is **not universally tamper-proof**.
+- **Privileged credentials.** The migration account (`lms_migrator`) is privileged: keep its credentials out of the runtime environment, use them only for reviewed migrations, and restrict who holds them.
+- **Open:** audit retention periods (Q-21); stronger external write-once storage is a future option, not implemented.
+
+### 11.3 Sign-in and request flow (implemented)
+
+```text
+POST /api/v1/auth/login {login_id, password}    Origin checked (no session yet, no CSRF token)
+  ← Set-Cookie lms_session (HttpOnly) + body {user, permissions, csrf_token, expiries}
+GET  /api/v1/auth/session                        restores user + csrf_token after a reload (public;
+                                                 never extends the idle window)
+POST|PUT|PATCH|DELETE (authenticated)            cookie + X-CSRF-Token + trusted Origin
+POST /api/v1/auth/password                       rotates the session and token; other sessions revoked
+POST /api/v1/auth/logout                         revokes the session; cookie cleared
+```
+
+Full endpoint list: [API reference](API_REFERENCE.md).
+
+### 11.4 Planned: personal-device credential, kiosk sign-in, badges, re-authentication
+- **Personal-device credential.** Stage B implements local passwords. OTP and/or corporate SSO for staff remain open **[A] Q-07**. Binding employee accounts to the employee code (FR-IAM-001, ADR-032) happens when accounts are linked to employees (Stage C/D).
+- **Kiosk mode** **[C]** / controls **[P]** — *not implemented*: kiosks registered by an administrator receive a device token (HttpOnly cookie) bound to `kiosk_device`; **PIN sign-in is accepted only with a valid kiosk device token**; sign-in by badge QR scan or typed employee ID **plus PIN**; short kiosk idle timeout; no personal data persisted on the device. PIN policy [A] Q-09.
+- **QR badges** **[C]** / tokens **[P]** — *not implemented*: the badge QR encodes an opaque, revocable random token (hash stored), never the bare employee code. **A badge identifies; it never authenticates alone.** An authenticated trainer may scan attendee badges for attendance. Badge format [A] Q-08.
 - **Re-authentication** (PIN/password) for acknowledgements, practical sign-offs and approvals. **[P]**; [A] Q-24
 
-### 11.3 Planned: CSRF protection
-`SameSite` cookies; synchronizer token in `X-CSRF-Token` for state-changing requests; `Origin`/`Referer` checks; no state changes on `GET`. **[P]**
-
-### 11.4 Planned: authorisation (RBAC + scope)
-Fine-grained permissions grouped into configurable **access roles**, assigned to user accounts with optional org-unit scope; **separate from functional roles**, which never grant permissions (ADR-023). Enforcement server-side, deny by default; every scoped query filtered; tests for cross-scope access. Separation of duties where required (e.g. the assessor of a practical evaluation cannot approve its authorisation certificate). **[C]** / **[P]**
-
-### 11.5 Planned: audit logging
-Append-only audit of logins, access changes, organisation changes, imports, governance decisions, assessment grading and overrides, practical evaluations, attendance corrections, finalisation/reopening, certificate issuance/suspension/revocation, compliance exemptions, exports. **[C]** / scope **[P]**
+### 11.5 Planned: organisation-scoped authorisation (Stage C)
+Access-role assignments optionally scoped to an organisation unit and its descendants; every scoped query filtered; tests for cross-scope access; separation of duties where required (e.g. the assessor of a practical evaluation cannot approve its authorisation certificate). Access roles stay **separate from functional roles**, which never grant permissions (ADR-023). **[C]** / **[P]**
 
 ### 11.6 Planned: protected file access
 Files (content, evidence photos, import workbooks, certificates, submissions) stored outside the web root; downloads via authorised endpoints or short-lived signed URLs; upload validation by size, type and content sniffing; executable and macro formats rejected. **[P]**
@@ -329,7 +362,7 @@ Files (content, evidence photos, import workbooks, certificates, submissions) st
 `/verify/:token` page calls `GET /api/v1/public/certificates/verify/{token}`; tokens are random (only hashes stored), so certificates cannot be enumerated; response limited to certificate number, holder display name, certification, issue/expiry dates and current status (valid, expired, suspended, revoked); rate-limited; access logged. **[C]** (QR verification) / **[P]**
 
 ### 11.8 Planned: other controls
-TLS + HSTS; strict CSP for the SPA; rate limiting (login, PIN, verification, AI, imports, reports); secrets in environment/secret store; dependency auditing; DPDP Act 2023 alignment (minimisation, **no compensation data**, retention limits); encrypted, restore-tested backups. **[C]** / **[P]**
+TLS + HSTS and a strict CSP at the reverse proxy; rate limiting beyond sign-in (PIN, verification, AI, imports, reports); secrets in environment/secret store; dependency auditing in CI; DPDP Act 2023 alignment (minimisation, **no compensation data**, retention limits); encrypted, restore-tested backups. **[C]** / **[P]**
 
 ## 12. AI service architecture — *Planned (Stage L); nothing implemented*
 

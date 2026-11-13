@@ -51,9 +51,33 @@ describe('translation resources', () => {
   )
 
   it.each(['bn', 'hi', 'gu'] as const)('%s is actually translated (not a copy of English)', (code) => {
-    expect(resources[code].common.dashboard.subtitle).not.toBe(resources.en.common.dashboard.subtitle)
-    expect(resources[code].common.nav.dashboard).not.toBe(resources.en.common.nav.dashboard)
+    const strings = resources[code].common
+    const english = resources.en.common
+    expect(strings.dashboard.subtitle).not.toBe(english.dashboard.subtitle)
+    expect(strings.nav.dashboard).not.toBe(english.nav.dashboard)
+    // Stage B6 sections
+    expect(strings.auth.login.title).not.toBe(english.auth.login.title)
+    expect(strings.auth.errors.invalidCredentials).not.toBe(english.auth.errors.invalidCredentials)
+    expect(strings.auth.password.issues.too_common).not.toBe(english.auth.password.issues.too_common)
+    expect(strings.admin.users.title).not.toBe(english.admin.users.title)
+    expect(strings.admin.audit.viewingRecorded).not.toBe(english.admin.audit.viewingRecorded)
+    expect(strings.audit.events.loginSucceeded).not.toBe(english.audit.events.loginSucceeded)
+    expect(strings.roles.hr_admin).not.toBe(english.roles.hr_admin)
+    expect(strings.errors.forbiddenTitle).not.toBe(english.errors.forbiddenTitle)
   })
+
+  it.each(SUPPORTED_LANGUAGES.map((language) => language.code))(
+    '%s keeps every interpolation placeholder of the English text',
+    (code) => {
+      const translated = flattenKeys(resources[code].common)
+      for (const [key, value] of flattenKeys(resources.en.common)) {
+        const placeholders = String(value).match(/\{\{\w+\}\}/g) ?? []
+        for (const placeholder of placeholders) {
+          expect(String(translated.get(key)), `${code}: ${key}`).toContain(placeholder)
+        }
+      }
+    },
+  )
 })
 
 describe('language switching', () => {

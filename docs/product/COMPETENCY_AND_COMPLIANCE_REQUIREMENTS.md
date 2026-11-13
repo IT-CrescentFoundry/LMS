@@ -147,4 +147,5 @@ Whether other plants use the same scale is **[A] Q-02**. Translations of the lab
 
 - Reports (defined once in [product requirements §8](LMS_PRODUCT_REQUIREMENTS.md)): Competency Skill Finder (FR-RPT-004), Skill Gap (FR-RPT-005), Compliance (FR-RPT-006), Certification Register (FR-RPT-007), Certification Expiry (FR-RPT-008).
 - Imports ([profiles](../database/EXCEL_IMPORT_PROFILES.md)): profile 2 (skill matrices), profile 3 (individual development plans).
-- Open questions: Q-01, Q-02, Q-03, Q-10, Q-11, Q-23, Q-24, Q-34.
+- Source documents: Bagnan skill matrices, development plans and the Technical Competency Library `TC_Library_Crescent_Foundry_v1.xlsx` (functions, sub-functions, scope descriptions, proficiency levels, proposed grade-wise requirements, assessment methods, KRA mappings). See the source register in [product requirements §13.1](LMS_PRODUCT_REQUIREMENTS.md).
+- Open questions: Q-01, Q-02, Q-03, Q-10, Q-11, Q-23, Q-24, Q-34, Q-35 – Q-42.

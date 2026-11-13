@@ -20,10 +20,21 @@ def test_base_metadata_uses_naming_convention() -> None:
     assert Base.metadata.naming_convention == NAMING_CONVENTION
 
 
-def test_stage_a_defines_no_business_tables() -> None:
+def test_stage_b_defines_only_identity_and_audit_tables() -> None:
     import app.models  # noqa: F401
 
-    assert Base.metadata.tables == {}
+    assert set(Base.metadata.tables) == {
+        "user_account",
+        "access_permission",
+        "access_role",
+        "access_role_permission",
+        "user_access_role",
+        "user_session",
+        "login_throttle",
+        "audit_event",
+    }
+    # No organisation/employee tables before Stage C.
+    assert not any("employee" in name or "org_unit" in name for name in Base.metadata.tables)
 
 
 def test_naming_convention_produces_deterministic_names() -> None:
