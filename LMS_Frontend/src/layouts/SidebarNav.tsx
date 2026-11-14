@@ -11,11 +11,11 @@ interface SidebarNavProps {
 
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const { t } = useTranslation()
-  return items.map(({ id, labelKey, icon: Icon, to }) => (
+  return items.map(({ id, labelKey, icon: Icon, to, matchNested }) => (
     <li key={id}>
       <NavLink
         to={to ?? '/'}
-        end
+        end={!matchNested}
         onClick={onNavigate}
         className={({ isActive }) =>
           `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none ${

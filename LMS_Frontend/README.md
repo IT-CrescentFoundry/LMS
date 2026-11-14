@@ -8,15 +8,15 @@ React + TypeScript single-page application built with Vite and Tailwind CSS v4. 
 src/
 ├── app/          providers (TanStack Query + AuthProvider), router (route table), navigation model
 ├── layouts/      AppLayout (header, sidebar, mobile drawer, user menu), SidebarNav, AuthLayout (sign-in frame)
-├── features/     auth/, admin/, dashboard/, system-status/, errors/
-├── components/   shared UI (LanguageSelector, ConnectivityIndicator, Loading/Error states, badges, form styles)
-├── hooks/        cross-feature hooks
-├── services/     typed API functions (healthService, authService, adminService)
+├── features/     auth/, admin/, organisation/, dashboard/, system-status/, errors/
+├── components/   shared UI (LanguageSelector, ConnectivityIndicator, Loading/Error states, badges, form styles, Modal)
+├── hooks/        cross-feature hooks (useMediaQuery)
+├── services/     typed API functions (healthService, authService, adminService, organisationService)
 ├── lib/          apiClient (typed fetch, ApiError, CSRF), parse (response guards), format, config
 ├── i18n/         i18next setup, languages, locales/{en,bn,hi,gu}/common.json
 ├── styles/       Tailwind entry and design tokens (navy brand, gold, ember)
 ├── types/        shared types (API contracts, env)
-└── test/         test setup and helpers (renderApp, mockApi, synthetic fixtures)
+└── test/         test setup and helpers (renderApp, mockApi, synthetic fixtures incl. orgFixtures)
 ```
 
 ## Commands (from `LMS_Frontend/`)
@@ -75,15 +75,38 @@ Response parsers (`src/services/*`) copy only known fields, so an unexpected fie
 | `/` | signed in | Dashboard. |
 | `/admin/users` | `user_accounts.view` | Read-only account directory (`GET /admin/users`). |
 | `/admin/audit-log` | `audit.view` | Read-only audit log (`GET /admin/audit-events`). |
+| `/organisation` | `organisation.view` | Organisation Builder: structure tree as of a date, unit details, children and placement history. Changes need `organisation.manage`. |
+| `/organisation/unit-types` | `organisation.view` | Unit types, parent rules (advisory / strict), employee-assignment flag. Changes need `organisation.manage`. |
+| `/organisation/locations` | `organisation.view` | Physical sites. Changes need `organisation.manage`. |
+| `/organisation/job-families`, `/grades`, `/levels`, `/designations` | `organisation.view` | Reference lists (grades and levels are independent). Changes need `designations.manage`. |
+| `/organisation/functional-roles` | `organisation.view` | Functional roles (not access roles). Changes, and designation-to-role mappings, need `functional_roles.manage`. |
+| `/organisation/responsibilities` | `organisation.view` | Duties catalogue (grants no permission). Changes need `responsibilities.manage`. |
 
 - Screens and navigation items check **permission codes** (`src/features/auth/permissions.ts`), never role names.
 - **Hiding a link or page is not a security boundary.** The API enforces every permission itself; the UI only avoids showing screens that would fail. A 403 from the API makes the UI re-read the session.
 - The backend records every audit-log read as an `audit.events.viewed` event, so the Audit log page fetches only on open, filter, **Refresh** and **Load more**. It never refetches on window focus. Its request is deliberately not tied to the query's abort signal, so React StrictMode's development remount reuses the in-flight request instead of sending (and auditing) a second one.
 
+## Organisation area (Stage C2)
+
+`src/features/organisation/` uses only the Stage C1 API (`/api/v1/org`, see the [API reference §7–8](../docs/architecture/API_REFERENCE.md)); no backend behaviour is reimplemented in the browser.
+
+| Topic | Design |
+|---|---|
+| Server state | `orgQueries.ts`: every query key starts with `org`; a successful change invalidates them all, so the tree, details, history and pickers stay consistent with the server. Mutations never retry. |
+| Pages | Loaded on first visit (route `lazy`), so users who never open the area never download it. `OrganisationLayout` adds breadcrumbs and the section navigation. |
+| Tree | `tree.ts` (pure) rebuilds the hierarchy from `GET /org/tree`; `OrgTree.tsx` implements the WAI-ARIA tree pattern (roving tabindex; arrows, Home/End, Enter/Space). Below the `lg` breakpoint `MobileUnitBrowser` provides one-level-at-a-time drill-down instead. Moving a unit is a form, never drag-and-drop only. |
+| As-of date | Blank means "today" on the server (business date); the response's `as_of` is shown. Status views map to `include_closed`; type, status and text filters run on the loaded tree and keep matching units' ancestors visible. |
+| Changes | Correct (PATCH, only changed fields, with `version` and a reason), move and close (two-step confirmation with an effective date), reopen. Units are never deleted. Advisory-rule warnings are shown with the success message; strict-rule and other refusals show the translated error, and closures list the blocking dependants returned by the API. |
+| Conflicts | A `409 version_conflict` is never retried or overwritten: the dialog offers **Reload the latest data**, which refreshes every organisation view and closes the dialog. |
+| Permissions | Each page reads `organisation.view`; write controls appear only with the matching `*.manage` code (read-only users see a **Read only** badge). The API enforces both. |
+| Names | Translated display names (`bn`, `hi`, `gu`) are used in the UI language, falling back to the recorded name (`names.ts`). |
+| Errors | `orgErrors.ts` lists every C1 error code; each is translated in all four languages (`org.errors.codes.*`). The backend's English message is never shown. |
+| Dialogs | `components/Modal.tsx`: labelled `role="dialog"`, focus moves in and returns to the opener, Tab is trapped, Escape closes (not while saving), backdrop clicks do not discard input. |
+
 ## Testing
 
 - `src/test/renderApp.tsx` renders the real app with a memory router. `mockApi()` stubs `fetch` with a route table (`'GET /auth/session'`, …) and records every request, including headers and bodies. `mockSignedIn(user)` adds a signed-in session.
-- Fixtures (`EMPLOYEE`, `HR_ADMIN`, `SUPER_ADMIN`, `sessionBody`) are synthetic. Never use real employee data.
+- Fixtures (`EMPLOYEE`, `SUPERVISOR`, `HR_ADMIN`, `SUPER_ADMIN`, `sessionBody`, and `orgFixtures.ts`) are synthetic. The only real organisation names are the five approved baseline functions. Never use real employee data.
 - `src/test/setup.ts` clears web storage, the in-memory CSRF token and the auth handlers after each test.
 
 ## Adding translations
@@ -91,4 +114,4 @@ Response parsers (`src/services/*`) copy only known fields, so an unexpected fie
 1. Add the key and English text to `src/i18n/locales/en/common.json` (keys are type-checked against this file).
 2. Add the same key to `bn`, `hi` and `gu`. `src/i18n/i18n.test.ts` fails if any language is missing a key, has an empty value or drops an `{{placeholder}}`.
 3. Translate backend error **codes** (see `src/features/auth/authErrors.ts`); never show the backend's English `message` to users.
-4. Have new strings reviewed by a native speaker before learner-facing release. The Stage B6 Bengali, Hindi and Gujarati strings are still awaiting that review.
+4. Have new strings reviewed by a native speaker before learner-facing release. The Stage B6 and C2 Bengali, Hindi and Gujarati strings are still awaiting that review.

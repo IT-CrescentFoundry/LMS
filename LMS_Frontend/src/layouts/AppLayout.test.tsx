@@ -9,6 +9,7 @@ import {
   renderApp,
   reply,
   SUPER_ADMIN,
+  SUPERVISOR,
 } from '../test/renderApp'
 
 describe('AppLayout', () => {
@@ -40,7 +41,9 @@ describe('AppLayout', () => {
 
     const plannedGroup = within(nav).getByRole('list', { name: 'Coming soon' })
     const plannedItems = within(plannedGroup).getAllByRole('listitem')
-    expect(plannedItems).toHaveLength(8)
+    // Organisation became a real page in Stage C2 (and needs organisation.view).
+    expect(plannedItems).toHaveLength(7)
+    expect(within(plannedGroup).queryByText('Organisation')).not.toBeInTheDocument()
     for (const item of plannedItems) {
       expect(item).toHaveAttribute('aria-disabled', 'true')
       expect(within(item).queryByRole('link')).not.toBeInTheDocument()
@@ -75,6 +78,24 @@ describe('AppLayout', () => {
       'href',
       '/admin/audit-log',
     )
+  })
+
+  it('shows the Organisation link only with organisation.view and keeps it active on sub-pages', async () => {
+    mockSignedIn(SUPERVISOR, { 'GET /org/locations': reply([]) })
+    renderApp('/organisation/locations')
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    const link = within(nav).getByRole('link', { name: 'Organisation' })
+    expect(link).toHaveAttribute('href', '/organisation')
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('hides the Organisation link from users without organisation.view', async () => {
+    mockSignedIn(EMPLOYEE)
+    renderApp()
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).queryByRole('link', { name: 'Organisation' })).not.toBeInTheDocument()
   })
 
   it('shows only the items matching each permission (no role-name checks)', async () => {

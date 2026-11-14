@@ -98,6 +98,12 @@ const HR_ADMIN_PERMISSIONS = [
   PERMISSIONS.USER_ROLES_ASSIGN,
   PERMISSIONS.ACCESS_ROLES_VIEW,
   PERMISSIONS.AUDIT_VIEW,
+  // Stage C1 grants (migration 0007): HR Admin holds all five organisation codes.
+  PERMISSIONS.ORGANISATION_VIEW,
+  PERMISSIONS.ORGANISATION_MANAGE,
+  PERMISSIONS.DESIGNATIONS_MANAGE,
+  PERMISSIONS.FUNCTIONAL_ROLES_MANAGE,
+  PERMISSIONS.RESPONSIBILITIES_MANAGE,
 ]
 
 export function makeUser(overrides: Partial<UserBody> = {}): UserBody {
@@ -122,6 +128,15 @@ export const HR_ADMIN = makeUser({
   display_name: 'Test HR Admin',
   roles: ['hr_admin'],
   permissions: [...HR_ADMIN_PERMISSIONS],
+})
+
+/** Supervisors may view the organisation structure but not change it (migration 0007). */
+export const SUPERVISOR = makeUser({
+  public_id: '01900000-0000-7000-8000-000000000004',
+  login_id: 'test.supervisor',
+  display_name: 'Test Supervisor',
+  roles: ['supervisor'],
+  permissions: [...EMPLOYEE_PERMISSIONS, PERMISSIONS.TEAM_LEARNING_VIEW, PERMISSIONS.ORGANISATION_VIEW],
 })
 
 export const SUPER_ADMIN = makeUser({

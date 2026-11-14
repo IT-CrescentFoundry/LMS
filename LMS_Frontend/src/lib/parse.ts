@@ -27,6 +27,35 @@ export function expectNullableString(record: Record<string, unknown>, key: strin
   return value
 }
 
+export function expectInteger(record: Record<string, unknown>, key: string): number {
+  const value = record[key]
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new TypeError(`${key}: expected an integer`)
+  }
+  return value
+}
+
+export function expectNullableInteger(record: Record<string, unknown>, key: string): number | null {
+  const value = record[key]
+  if (value === undefined || value === null) return null
+  return expectInteger(record, key)
+}
+
+/** A business date "YYYY-MM-DD" (or null). */
+export function expectNullableIsoDate(record: Record<string, unknown>, key: string): string | null {
+  const value = expectNullableString(record, key)
+  if (value !== null && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new TypeError(`${key}: expected a date (YYYY-MM-DD)`)
+  }
+  return value
+}
+
+export function expectIsoDate(record: Record<string, unknown>, key: string): string {
+  const value = expectNullableIsoDate(record, key)
+  if (value === null) throw new TypeError(`${key}: expected a date (YYYY-MM-DD)`)
+  return value
+}
+
 export function expectBoolean(record: Record<string, unknown>, key: string): boolean {
   const value = record[key]
   if (typeof value !== 'boolean') throw new TypeError(`${key}: expected a boolean`)

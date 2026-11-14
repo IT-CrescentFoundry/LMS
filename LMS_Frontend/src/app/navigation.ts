@@ -37,6 +37,8 @@ export interface NavItem {
   to?: string
   status: 'available' | 'planned'
   group: 'main' | 'administration'
+  /** Also highlight the item on nested routes (e.g. /organisation/locations). */
+  matchNested?: boolean
   /**
    * Hide the item from users without this permission. This is a convenience
    * only: the page and its API enforce the permission themselves.
@@ -51,6 +53,16 @@ export interface NavItem {
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, to: '/', status: 'available', group: 'main' },
+  {
+    id: 'organisation',
+    labelKey: 'nav.organisation',
+    icon: Network,
+    to: '/organisation',
+    status: 'available',
+    group: 'main',
+    matchNested: true,
+    requiredPermission: PERMISSIONS.ORGANISATION_VIEW,
+  },
   {
     id: 'users',
     labelKey: 'nav.users',
@@ -75,7 +87,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'competencies', labelKey: 'nav.competencies', icon: Sparkles, status: 'planned', group: 'main' },
   { id: 'career', labelKey: 'nav.career', icon: Route, status: 'planned', group: 'main' },
   { id: 'certifications', labelKey: 'nav.certifications', icon: Award, status: 'planned', group: 'main' },
-  { id: 'organisation', labelKey: 'nav.organisation', icon: Network, status: 'planned', group: 'main' },
   { id: 'reports', labelKey: 'nav.reports', icon: ChartColumn, status: 'planned', group: 'main' },
 ]
 

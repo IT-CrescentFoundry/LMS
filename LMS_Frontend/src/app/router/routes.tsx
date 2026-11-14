@@ -10,6 +10,7 @@ import { CHANGE_PASSWORD_PATH, LOGIN_PATH } from '../../features/auth/safeRedire
 import { DashboardPage } from '../../features/dashboard/DashboardPage'
 import { NotFoundPage } from '../../features/errors/NotFoundPage'
 import { RouteErrorPage } from '../../features/errors/RouteErrorPage'
+import { OrganisationLayout } from '../../features/organisation/OrganisationLayout'
 import { AppLayout } from '../../layouts/AppLayout'
 import { AuthLayout } from '../../layouts/AuthLayout'
 
@@ -65,6 +66,78 @@ export const routes: RouteObject[] = [
                     <AuditLogPage />
                   </RequirePermission>
                 ),
+              },
+              {
+                // Organisation area: viewing needs organisation.view; each page
+                // shows its management controls only with the matching
+                // *.manage permission (the API enforces both).
+                path: 'organisation',
+                element: (
+                  <RequirePermission permission={PERMISSIONS.ORGANISATION_VIEW}>
+                    <OrganisationLayout />
+                  </RequirePermission>
+                ),
+                // Pages are loaded on first visit (separate bundles), so users who
+                // never open the organisation area never download it.
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/OrganisationStructurePage'))
+                        .OrganisationStructurePage,
+                    }),
+                  },
+                  {
+                    path: 'unit-types',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/UnitTypesPage')).UnitTypesPage,
+                    }),
+                  },
+                  {
+                    path: 'locations',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/LocationsPage')).LocationsPage,
+                    }),
+                  },
+                  {
+                    path: 'job-families',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/JobFamiliesPage')).JobFamiliesPage,
+                    }),
+                  },
+                  {
+                    path: 'designations',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/DesignationsPage')).DesignationsPage,
+                    }),
+                  },
+                  {
+                    path: 'grades',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/RankedListPage')).GradesPage,
+                    }),
+                  },
+                  {
+                    path: 'levels',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/RankedListPage')).LevelsPage,
+                    }),
+                  },
+                  {
+                    path: 'functional-roles',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/FunctionalRolesPage'))
+                        .FunctionalRolesPage,
+                    }),
+                  },
+                  {
+                    path: 'responsibilities',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/ResponsibilitiesPage'))
+                        .ResponsibilitiesPage,
+                    }),
+                  },
+                ],
               },
               { path: '*', element: <NotFoundPage /> },
             ],
