@@ -48,6 +48,17 @@ function auditRow(index: number, overrides: Record<string, unknown> = {}) {
 
 const page = (items: unknown[], next_cursor: string | null = null) => reply({ items, next_cursor })
 
+/**
+ * The audit table once the events have loaded (it is not rendered while the request
+ * is pending). Event and outcome labels such as "Sign-in succeeded" also appear as
+ * <option>s in the filter form, so assertions about the listed events must be scoped
+ * to this table: an unscoped text query would match the filter option alone before
+ * the data arrives, and both elements afterwards.
+ */
+function findAuditTable(name = 'Audit events') {
+  return screen.findByRole('table', { name })
+}
+
 describe('permission guards', () => {
   it.each(['/admin/users', '/admin/audit-log'])(
     'shows a 403 page for %s without calling the API when the permission is missing',
@@ -201,7 +212,7 @@ describe('Audit log page', () => {
     const user = userEvent.setup()
     renderApp('/admin/audit-log')
 
-    await screen.findByText('Sign-in succeeded')
+    expect(within(await findAuditTable()).getByText('Sign-in succeeded')).toBeInTheDocument()
     expect(api.requestsTo('GET /admin/audit-events')).toHaveLength(1)
 
     await act(async () => {
@@ -232,7 +243,7 @@ describe('Audit log page', () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
     })
     await act(async () => release())
-    expect(await screen.findByText('Sign-in succeeded')).toBeInTheDocument()
+    expect(within(await findAuditTable()).getByText('Sign-in succeeded')).toBeInTheDocument()
     expect(api.requestsTo('GET /admin/audit-events')).toHaveLength(1)
   })
 
@@ -240,7 +251,7 @@ describe('Audit log page', () => {
     const api = mockSignedIn(SUPER_ADMIN, { 'GET /admin/audit-events': page([auditRow(1)], 'cur-2') })
     const user = userEvent.setup()
     renderApp('/admin/audit-log')
-    await screen.findByText('Sign-in succeeded')
+    expect(within(await findAuditTable()).getByText('Sign-in succeeded')).toBeInTheDocument()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Event type' }), 'auth.login.failed')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Outcome' }), 'failure')
@@ -284,8 +295,9 @@ describe('Audit log page', () => {
     const strings = resources[code].common
 
     expect(await screen.findByRole('heading', { name: strings.admin.audit.title })).toBeInTheDocument()
-    expect(screen.getByText(strings.audit.events.loginSucceeded)).toBeInTheDocument()
-    expect(screen.getByText(strings.audit.outcomes.success)).toBeInTheDocument()
+    const table = await findAuditTable(strings.admin.audit.caption)
+    expect(within(table).getByText(strings.audit.events.loginSucceeded)).toBeInTheDocument()
+    expect(within(table).getByText(strings.audit.outcomes.success)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: strings.admin.applyFilters })).toBeInTheDocument()
   })
 })

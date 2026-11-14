@@ -21,6 +21,12 @@ class Permission(StrEnum):
     ACCESS_ROLES_VIEW = "access_roles.view"
     ACCESS_ROLES_MANAGE = "access_roles.manage"
     AUDIT_VIEW = "audit.view"
+    # Stage C1 — organisation structure and reference data (revision 0007)
+    ORGANISATION_VIEW = "organisation.view"
+    ORGANISATION_MANAGE = "organisation.manage"
+    DESIGNATIONS_MANAGE = "designations.manage"
+    FUNCTIONAL_ROLES_MANAGE = "functional_roles.manage"
+    RESPONSIBILITIES_MANAGE = "responsibilities.manage"
     # Capabilities for later stages (no endpoints yet)
     LEARNING_OWN_VIEW = "learning.own.view"
     CERTIFICATES_OWN_VIEW = "certificates.own.view"

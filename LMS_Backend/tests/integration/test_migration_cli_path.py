@@ -24,6 +24,9 @@ from tests.support.database import IntegrationDatabaseSettings, assert_connected
 
 pytestmark = pytest.mark.db
 
+# Revision 0003 creates the audit triggers; its parent has none.
+TRIGGER_REVISION_PARENT = "0002"
+
 
 def _cli_settings(integration: IntegrationDatabaseSettings, database_name: str) -> Settings:
     password = integration.password
@@ -80,12 +83,24 @@ def test_cli_migration_path_commits_every_revision(
     head = ScriptDirectory.from_config(alembic_config).get_current_head()
     assert _version_and_triggers(test_engine) == ([head], 2)
 
-    # Downgrade the last revision through the CLI path: drops the triggers and
-    # must COMMIT the version change as well.
+    assert head is not None
+    head_revision = ScriptDirectory.from_config(alembic_config).get_revision(head)
+    assert head_revision is not None
+
+    # Downgrade the last revision (a data-only revision since Stage C1) through the
+    # CLI path: the version change must be COMMITTED.
     command.downgrade(alembic_config, "-1")
-    previous, triggers = _version_and_triggers(test_engine)
-    assert triggers == 0
-    assert previous != [head], "downgrade did not commit its alembic_version change"
+    assert _version_and_triggers(test_engine) == ([head_revision.down_revision], 2), (
+        "downgrade did not commit its alembic_version change"
+    )
+
+    # Downgrade below the audit-trigger revision: runs every later downgrade
+    # (including the organisation data migrations), drops the triggers and must
+    # commit the version change as well.
+    command.downgrade(alembic_config, TRIGGER_REVISION_PARENT)
+    assert _version_and_triggers(test_engine) == ([TRIGGER_REVISION_PARENT], 0), (
+        "downgrade did not commit its alembic_version change"
+    )
 
     # Upgrade back to head through the CLI path.
     command.upgrade(alembic_config, "head")

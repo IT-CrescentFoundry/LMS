@@ -135,6 +135,12 @@ class Settings(BaseSettings):
     login_failure_window_minutes: int = Field(default=15, ge=1, le=1440)
     login_lockout_minutes: int = Field(default=15, ge=1, le=1440)
 
+    # --- Business calendar ---------------------------------------------------
+    # Effective dates (organisation changes, assignments) are business dates. "Today"
+    # for as-of queries is computed with this fixed UTC offset; default IST (+05:30).
+    # A fixed offset avoids a runtime time-zone database dependency.
+    business_utc_offset_minutes: int = Field(default=330, ge=-720, le=840)
+
     # --- Database: runtime account (dedicated LMS MySQL 8 database) --------
     db_host: str | None = None
     db_port: int = Field(default=3306, ge=1, le=65535)

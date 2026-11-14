@@ -55,15 +55,35 @@ def test_every_non_public_route_requires_authentication() -> None:
     assert unprotected == []
 
 
-def test_admin_routes_require_specific_permissions() -> None:
+def _required_permissions(route: APIRoute) -> set[str]:
+    found: set[str] = set()
+    for dependency in route.dependant.dependencies:
+        found.update(getattr(dependency.call, "required_permissions", ()))
+    return found
+
+
+def test_admin_and_organisation_routes_require_specific_permissions() -> None:
+    checked = 0
     for route in _api_routes(list(api_router.routes)):
-        if not route.path.startswith("/admin"):
+        if not route.path.startswith(("/admin", "/org")):
             continue
-        required = [
-            getattr(dependency.call, "required_permissions", None)
-            for dependency in route.dependant.dependencies
-        ]
-        assert any(required), f"{route.path} has no permission requirement"
+        checked += 1
+        assert _required_permissions(route), f"{route.path} has no permission requirement"
+    assert checked > 0
+
+
+def test_organisation_writes_need_a_manage_permission() -> None:
+    writes = 0
+    for route in _api_routes(list(api_router.routes)):
+        if not route.path.startswith("/org"):
+            continue
+        required = _required_permissions(route)
+        if route.methods and route.methods & {"POST", "PUT", "PATCH", "DELETE"}:
+            writes += 1
+            assert required and all(code.endswith(".manage") for code in required), route.path
+        else:
+            assert required == {"organisation.view"}, route.path
+    assert writes > 0
 
 
 # --- Trusted origin (CSRF layer 1) ---------------------------------------------------

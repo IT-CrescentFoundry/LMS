@@ -20,21 +20,46 @@ def test_base_metadata_uses_naming_convention() -> None:
     assert Base.metadata.naming_convention == NAMING_CONVENTION
 
 
-def test_stage_b_defines_only_identity_and_audit_tables() -> None:
+STAGE_B_TABLES = {
+    "user_account",
+    "access_permission",
+    "access_role",
+    "access_role_permission",
+    "user_access_role",
+    "user_session",
+    "login_throttle",
+    "audit_event",
+}
+STAGE_C1_TABLES = {
+    "graph_lock",
+    "location",
+    "org_unit_type",
+    "org_unit_type_translation",
+    "org_unit_type_rule",
+    "org_unit",
+    "org_unit_translation",
+    "org_unit_hierarchy",
+    "job_family",
+    "grade",
+    "job_level",
+    "designation",
+    "designation_translation",
+    "functional_role",
+    "functional_role_translation",
+    "designation_functional_role",
+    "responsibility",
+    "responsibility_translation",
+}
+
+
+def test_models_define_only_the_tables_of_completed_stages() -> None:
     import app.models  # noqa: F401
 
-    assert set(Base.metadata.tables) == {
-        "user_account",
-        "access_permission",
-        "access_role",
-        "access_role_permission",
-        "user_access_role",
-        "user_session",
-        "login_throttle",
-        "audit_event",
-    }
-    # No organisation/employee tables before Stage C.
-    assert not any("employee" in name or "org_unit" in name for name in Base.metadata.tables)
+    assert set(Base.metadata.tables) == STAGE_B_TABLES | STAGE_C1_TABLES
+    # Employees, assignments, reporting lines (C3) and competency data (Stage F) are
+    # not part of C1.
+    for fragment in ("employee", "assignment", "reporting", "competenc", "proficien"):
+        assert not any(fragment in name for name in Base.metadata.tables), fragment
 
 
 def test_naming_convention_produces_deterministic_names() -> None:

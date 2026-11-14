@@ -36,8 +36,8 @@ from tests.support.schema_reset import (
 
 pytestmark = pytest.mark.db
 
-STAGE_B_ROLES = 6
-STAGE_B_PERMISSIONS = 17
+SEEDED_ROLES = 6
+SEEDED_PERMISSIONS = 22  # 17 from Stage B (0002) + 5 organisation codes (0007)
 META = RequestMeta(request_id="reset-regression", ip_address="127.0.0.1")
 
 
@@ -45,8 +45,8 @@ def _assert_clean_head(state: SchemaState) -> None:
     assert state.tables == model_tables()
     assert state.version == (alembic_head(),)
     assert state.triggers == AUDIT_TRIGGERS
-    assert state.roles == STAGE_B_ROLES
-    assert state.permissions == STAGE_B_PERMISSIONS
+    assert state.roles == SEEDED_ROLES
+    assert state.permissions == SEEDED_PERMISSIONS
     assert state.accounts == 0
 
 
