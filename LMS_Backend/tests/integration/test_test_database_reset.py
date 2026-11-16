@@ -37,7 +37,7 @@ from tests.support.schema_reset import (
 pytestmark = pytest.mark.db
 
 SEEDED_ROLES = 6
-SEEDED_PERMISSIONS = 22  # 17 from Stage B (0002) + 5 organisation codes (0007)
+SEEDED_PERMISSIONS = 26  # 17 Stage B (0002) + 5 organisation (0007) + 4 employee (0009)
 META = RequestMeta(request_id="reset-regression", ip_address="127.0.0.1")
 
 

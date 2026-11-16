@@ -8,6 +8,7 @@ import {
   EMPLOYEE,
   errorBody,
   HR_ADMIN,
+  makeUser,
   mockSignedIn,
   renderApp,
   reply,
@@ -152,6 +153,47 @@ describe('Users page', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Could not load user accounts.')
     expect(alert).toHaveTextContent('Reference: req-test-1')
+  })
+
+  it('filters by employee link and shows the linked employee to employee viewers only', async () => {
+    const linked = { public_id: 'emp-1', employee_code: '00042', full_name: 'Test Person One' }
+    const api = mockSignedIn(HR_ADMIN, {
+      'GET /admin/users': page([userRow(1, { employee: linked }), userRow(2, { employee: null })]),
+    })
+    const user = userEvent.setup()
+    renderApp('/admin/users')
+
+    const table = await screen.findByRole('table', { name: 'User accounts' })
+    const [first, second] = within(table).getAllByRole('row').slice(1)
+    expect(within(first).getByRole('link', { name: '00042 · Test Person One' })).toHaveAttribute(
+      'href',
+      '/employees/emp-1',
+    )
+    expect(second).toHaveTextContent('Not linked')
+    // Seven columns do not fit at tablet widths: the table switches at xl (cards below).
+    expect(table.querySelector('thead')).toHaveClass('xl:table-header-group')
+    expect(table.querySelector('thead')).not.toHaveClass('md:table-header-group')
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Employee link' }), 'no')
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
+    await waitFor(() => expect(api.requestsTo('GET /admin/users')).toHaveLength(2))
+    expect(Object.fromEntries(api.requestsTo('GET /admin/users')[1].query)).toEqual({ linked: 'false', limit: '25' })
+  })
+
+  it('omits the linked-employee column without employees.view', async () => {
+    const accountsOnly = makeUser({ permissions: ['user_accounts.view'] })
+    mockSignedIn(accountsOnly, {
+      'GET /admin/users': page([
+        userRow(1, { employee: { public_id: 'emp-1', employee_code: '00042', full_name: 'Test Person One' } }),
+      ]),
+    })
+    renderApp('/admin/users')
+
+    const table = await screen.findByRole('table', { name: 'User accounts' })
+    expect(within(table).queryByRole('columnheader', { name: 'Linked employee' })).not.toBeInTheDocument()
+    expect(table).not.toHaveTextContent('00042')
+    // Without the extra column the Stage B six-column table keeps its md breakpoint.
+    expect(table.querySelector('thead')).toHaveClass('md:table-header-group')
   })
 })
 

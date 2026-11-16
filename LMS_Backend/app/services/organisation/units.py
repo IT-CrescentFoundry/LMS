@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session, aliased
 from app.core.context import RequestMeta
 from app.core.errors import AppError
 from app.db.types import utcnow
+from app.models.employees import EmployeeAssignment, EmployeeResponsibility
 from app.models.occupation import DesignationFunctionalRole, FunctionalRole
 from app.models.organisation import (
     ORG_HIERARCHY_LOCK,
@@ -286,6 +287,26 @@ def create_unit(
     return unit, warnings
 
 
+def _employee_records_before(db: Session, unit: OrgUnit, day: date) -> bool:
+    """Stage C3: does any assignment or responsibility in ``unit`` start before ``day``?"""
+    for model, column in (
+        (EmployeeAssignment, EmployeeAssignment.org_unit_id),
+        (EmployeeResponsibility, EmployeeResponsibility.context_org_unit_id),
+    ):
+        found = db.scalar(
+            select(model.id)
+            .where(
+                column == unit.id,
+                or_(model.effective_from.is_(None), model.effective_from < day),
+            )
+            .with_for_update(read=True)
+            .limit(1)
+        )
+        if found is not None:
+            return True
+    return False
+
+
 def correct_unit(
     db: Session,
     public_id: uuid.UUID,
@@ -348,6 +369,13 @@ def correct_unit(
                     "The new start date would leave existing parent/child links outside "
                     "the unit's lifetime.",
                 )
+        if new_start is not None and _employee_records_before(db, unit, new_start):
+            raise AppError(
+                422,
+                "period_conflict",
+                "The new start date would leave employee assignments or responsibilities "
+                "outside the unit's lifetime.",
+            )
         diff["effective_from"] = {
             "from": jsonable(unit.effective_from),
             "to": jsonable(changes["effective_from"]),
@@ -577,6 +605,47 @@ def close_unit(
                 location=["designation_role_mappings", str(mapping.public_id)],
                 message="Open designation-to-role mapping scoped to this unit",
                 type="scoped_mapping",
+            )
+        )
+    # Stage C3 dependants: employee assignments and responsibilities in this unit.
+    for assignment in db.scalars(
+        select(EmployeeAssignment)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+        .where(
+            EmployeeAssignment.org_unit_id == unit.id,
+            or_(
+                EmployeeAssignment.effective_to.is_(None),
+                EmployeeAssignment.effective_to > effective_date,
+            ),
+        )
+        .order_by(EmployeeAssignment.id)
+    ).unique():
+        blockers.append(
+            ValidationIssue(
+                location=["employee_assignments", str(assignment.public_id)],
+                message="Employee assignment in this unit continues after the closure date",
+                type="employee_assignment",
+            )
+        )
+    for responsibility in db.scalars(
+        select(EmployeeResponsibility)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+        .where(
+            EmployeeResponsibility.context_org_unit_id == unit.id,
+            or_(
+                EmployeeResponsibility.effective_to.is_(None),
+                EmployeeResponsibility.effective_to > effective_date,
+            ),
+        )
+        .order_by(EmployeeResponsibility.id)
+    ).unique():
+        blockers.append(
+            ValidationIssue(
+                location=["employee_responsibilities", str(responsibility.public_id)],
+                message="Employee responsibility in this unit continues after the closure date",
+                type="employee_responsibility",
             )
         )
     if blockers:

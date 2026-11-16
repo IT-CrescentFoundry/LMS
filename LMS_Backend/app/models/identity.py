@@ -1,8 +1,10 @@
 """Identity and access-control models (Stage B).
 
 A ``UserAccount`` is a *system login identity*. It is deliberately not an employee
-record: accounts can exist before employee data is imported. Stage C will add a
-nullable, unique ``employee_id`` foreign key without changing anything here.
+record: accounts can exist before or without employee data (ADR-040). Stage C3 adds a
+nullable ``employee_id`` link; the generated ``linked_employee_active`` column makes
+"at most one non-disabled account per employee" a database guarantee, while disabled
+accounts keep their link as history.
 
 ``AccessRole`` / ``AccessPermission`` are *application access* concepts. They are
 unrelated to functional job roles, designations or positions (organisation domain),
@@ -55,6 +57,8 @@ class UserAccount(Base):
         CheckConstraint(
             "status <> 'active' OR password_hash IS NOT NULL", name="active_requires_password"
         ),
+        UniqueConstraint("linked_employee_active"),
+        Index("ix_user_account_employee_id", "employee_id"),
     )
 
     id: Mapped[int] = mapped_column(BigIntKey, primary_key=True, autoincrement=True)
@@ -81,6 +85,20 @@ class UserAccount(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
     updated_by_user_id: Mapped[int | None] = mapped_column(BigIntKey, ForeignKey("user_account.id"))
     version: Mapped[int] = mapped_column(Integer)
+
+    # Stage C3: link to an employee record (ADR-040). ``use_alter`` because employee
+    # rows also reference user_account (created/updated by).
+    employee_id: Mapped[int | None] = mapped_column(
+        BigIntKey,
+        ForeignKey("employee.id", use_alter=True, name="fk_user_account_employee_id_employee"),
+    )
+    linked_employee_active: Mapped[int | None] = mapped_column(
+        BigIntKey,
+        Computed(
+            "IF(employee_id IS NOT NULL AND status <> 'disabled', employee_id, NULL)",
+            persisted=True,
+        ),
+    )
 
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012 - SQLAlchemy mapper config
 

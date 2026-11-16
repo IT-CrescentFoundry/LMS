@@ -27,6 +27,11 @@ class Permission(StrEnum):
     DESIGNATIONS_MANAGE = "designations.manage"
     FUNCTIONAL_ROLES_MANAGE = "functional_roles.manage"
     RESPONSIBILITIES_MANAGE = "responsibilities.manage"
+    # Stage C3 - employee master (revision 0009; interim global-only matrix, Q-51)
+    EMPLOYEES_VIEW = "employees.view"
+    EMPLOYEES_HISTORY_VIEW = "employees.history.view"
+    EMPLOYEES_MANAGE = "employees.manage"
+    REPORTING_LINES_MANAGE = "reporting_lines.manage"
     # Capabilities for later stages (no endpoints yet)
     LEARNING_OWN_VIEW = "learning.own.view"
     CERTIFICATES_OWN_VIEW = "certificates.own.view"

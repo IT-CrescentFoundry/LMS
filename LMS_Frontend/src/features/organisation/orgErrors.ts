@@ -61,7 +61,14 @@ export const ORG_ERROR_CODES = [
 ] as const
 export type OrgErrorCode = (typeof ORG_ERROR_CODES)[number]
 
-export const BLOCKER_TYPES = ['active_child', 'owned_functional_role', 'scoped_mapping'] as const
+export const BLOCKER_TYPES = [
+  'active_child',
+  'owned_functional_role',
+  'scoped_mapping',
+  // Stage C3: employee records in the unit that continue after the closure date
+  'employee_assignment',
+  'employee_responsibility',
+] as const
 export type BlockerType = (typeof BLOCKER_TYPES)[number]
 
 export const WARNING_CODES = ['type_rule_advisory'] as const

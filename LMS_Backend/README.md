@@ -10,14 +10,20 @@ app/
 ├── cli.py           administrative CLI: create/grant/revoke Super Admin
 ├── core/            config, logging, middleware (request ID, security headers, trusted-origin
 │                    CSRF check), errors (AppError), ids (UUIDv7), context, security/ (passwords, tokens)
-├── api/             router.py, deps.py (session, CSRF, require_permission), cookies, presenters,
-│                    routes/ (health, auth, admin_users, admin_access, admin_audit)
+├── api/             router.py, deps.py (session, CSRF, require_permission), cookies, presenters
+│                    (+ org_presenters, employee_presenters), routes/ (health, auth, admin_users,
+│                    admin_access, admin_audit, org_structure, org_reference, employees)
 ├── services/        health, audit (record + queries), identity/ (authentication, sessions,
-│                    throttling, accounts, access_control, permissions, bootstrap)
+│                    throttling, accounts, access_control, permissions, bootstrap),
+│                    organisation/ (units, hierarchy, reference data), employees/ (records,
+│                    assignments, roles, responsibilities, reporting, account links, data quality)
 ├── schemas/         Pydantic request/response models (no hashes or tokens in any response)
-├── models/          SQLAlchemy models: identity.py, audit.py
+├── models/          SQLAlchemy models: identity, audit, organisation, occupation, employees
 └── db/              declarative base, engine/session management, column types
 alembic/             env.py + versions/ 0001 tables · 0002 roles & permissions · 0003 audit triggers
+                     · 0004–0007 organisation, reference data, permissions (C1)
+                     · 0008 employees, assignments, reporting lines, account link · 0009 employee
+                     permissions (C3)
 tests/               unit tests (no database) and integration/ (crescent_lms_test only)
   support/           test-database guards (database.py) and schema rebuild (schema_reset.py)
 ```
@@ -81,6 +87,8 @@ Copy `.env.example` to `.env` (never commit it). All variables use the `LMS_` pr
 | User accounts | `/api/v1/admin/users…` (list, create, read, update, activate/suspend/disable, password reset, sessions, roles) | `user_accounts.*`, `user_sessions.revoke`, `user_roles.assign` |
 | Access roles | `/api/v1/admin/access-roles…`, `/api/v1/admin/access-permissions` | `access_roles.view` / `access_roles.manage` |
 | Audit log | `GET /api/v1/admin/audit-events` (read-only; every read is audited) | `audit.view` |
+| Organisation | `/api/v1/org/…` (unit types, units, tree, hierarchy, locations, job families, grades, levels, designations, functional roles and mappings, responsibilities) | `organisation.view`; changes need `organisation.manage`, `designations.manage`, `functional_roles.manage` or `responsibilities.manage` |
+| Employees (C3) | `/api/v1/employees…` (directory, records, employment status, assignments, functional roles, responsibilities, reporting lines, account links, history, data quality) | `employees.view`, `employees.history.view`, `employees.manage`, `reporting_lines.manage`; account links also need `user_accounts.manage` (global only until C4) |
 | API docs | `GET /api/docs`, `GET /api/v1/openapi.json` | development only |
 
 Full contract, error codes and schemas: [API reference](../docs/architecture/API_REFERENCE.md).
@@ -90,4 +98,5 @@ Full contract, error codes and schemas: [API reference](../docs/architecture/API
 - Runtime account `lms_app` has data access only; migrations use `lms_migrator`, whose credentials are privileged and must be kept out of the runtime environment.
 - Audit events are append-only (code paths, ORM guard, MySQL triggers). The triggers do **not** stop `TRUNCATE`/`DROP TABLE`, and the migration account can drop them (ADR-048). The development server's `log_bin_trust_function_creators = 1` is a local-development setting; production needs a DBA decision.
 - Every `/api/v1` route except the public allow-list requires a session; `tests/test_route_protection.py` fails if a new route forgets it.
+- Employee records hold no compensation, bank, government-identifier, date-of-birth, gender, home-address, health, family or personal-contact data. Tests use synthetic employees only; real employee workbooks are never added to the repository.
 - Database integration tests are pinned to `crescent_lms_test` as `lms_test@127.0.0.1`; the identity is verified on every connection before anything runs (ADR-041).

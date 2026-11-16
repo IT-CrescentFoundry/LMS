@@ -50,19 +50,43 @@ RevokeSessions = Annotated[
 AssignRoles = Annotated[AuthContext, Depends(require_permission(Permission.USER_ROLES_ASSIGN))]
 
 
+def _sees_employees(auth: AuthContext) -> bool:
+    """Linked employee details are shown only to callers who may view employees."""
+    return auth.has(Permission.EMPLOYEES_VIEW)
+
+
 @router.get("", response_model=Page[UserSummary], summary="List user accounts")
 def list_users(
-    _auth: ViewUsers,
+    auth: ViewUsers,
     db: DbSessionDep,
     status_filter: Annotated[AccountStatus | None, Query(alias="status")] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     cursor: Annotated[str | None, Query(max_length=40)] = None,
+    linked: Annotated[
+        bool | None, Query(description="Only accounts with (true) or without (false) an employee")
+    ] = None,
+    manageable: Annotated[
+        bool,
+        Query(
+            description="Only accounts the caller may manage (not their own; no permission "
+            "the caller lacks). Used by pickers; every change is still checked."
+        ),
+    ] = False,
 ) -> Page[UserSummary]:
     rows, next_cursor = accounts.list_accounts(
-        db, status=status_filter, search=q, limit=limit, cursor=cursor
+        db,
+        status=status_filter,
+        search=q,
+        limit=limit,
+        cursor=cursor,
+        linked=linked,
+        manageable_for=auth.actor if manageable else None,
     )
-    return Page[UserSummary](items=user_summaries(db, rows), next_cursor=next_cursor)
+    return Page[UserSummary](
+        items=user_summaries(db, rows, include_employee=_sees_employees(auth)),
+        next_cursor=next_cursor,
+    )
 
 
 @router.post(
@@ -92,12 +116,14 @@ def create_user(
             now=utcnow(),
         )
         db.commit()
-    return user_detail(db, account)
+    return user_detail(db, account, include_employee=_sees_employees(auth))
 
 
 @router.get("/{public_id}", response_model=UserDetail, summary="Get a user account")
-def get_user(public_id: uuid.UUID, _auth: ViewUsers, db: DbSessionDep) -> UserDetail:
-    return user_detail(db, accounts.get_account(db, public_id))
+def get_user(public_id: uuid.UUID, auth: ViewUsers, db: DbSessionDep) -> UserDetail:
+    return user_detail(
+        db, accounts.get_account(db, public_id), include_employee=_sees_employees(auth)
+    )
 
 
 @router.patch("/{public_id}", response_model=UserDetail, summary="Update name or email")
@@ -119,7 +145,7 @@ def update_user(
             meta=meta,
         )
         db.commit()
-    return user_detail(db, account)
+    return user_detail(db, account, include_employee=_sees_employees(auth))
 
 
 def _change_status(
@@ -141,7 +167,7 @@ def _change_status(
             now=utcnow(),
         )
         db.commit()
-    return user_detail(db, account)
+    return user_detail(db, account, include_employee=_sees_employees(auth))
 
 
 @router.post("/{public_id}/activate", response_model=UserDetail, summary="Activate")
@@ -276,7 +302,7 @@ def grant_role(
             now=utcnow(),
         )
         db.commit()
-    return user_detail(db, account)
+    return user_detail(db, account, include_employee=_sees_employees(auth))
 
 
 @router.delete(
@@ -300,4 +326,4 @@ def revoke_role(
             now=utcnow(),
         )
         db.commit()
-    return user_detail(db, account)
+    return user_detail(db, account, include_employee=_sees_employees(auth))

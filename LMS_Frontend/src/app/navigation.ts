@@ -4,6 +4,7 @@ import {
   ChartColumn,
   ClipboardCheck,
   GraduationCap,
+  IdCard,
   LayoutDashboard,
   Network,
   Route,
@@ -25,6 +26,7 @@ export type NavLabelKey =
   | 'nav.career'
   | 'nav.certifications'
   | 'nav.organisation'
+  | 'nav.employees'
   | 'nav.reports'
   | 'nav.users'
   | 'nav.auditLog'
@@ -62,6 +64,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'main',
     matchNested: true,
     requiredPermission: PERMISSIONS.ORGANISATION_VIEW,
+  },
+  {
+    id: 'employees',
+    labelKey: 'nav.employees',
+    icon: IdCard,
+    to: '/employees',
+    status: 'available',
+    group: 'main',
+    matchNested: true,
+    requiredPermission: PERMISSIONS.EMPLOYEES_VIEW,
   },
   {
     id: 'users',

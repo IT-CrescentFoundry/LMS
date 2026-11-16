@@ -119,6 +119,7 @@ FR-IAM-002 is met for personal devices only; kiosk timeouts are deferred.
 **Scope:** unit types/rules, units, effective-dated hierarchy, plants/locations, job families, grades, designations, positions, **functional roles**, **responsibilities**, designation/position→role mappings, employees (no compensation data), assignments, employee roles/responsibilities, reporting relationships, as-of queries, history, data-quality view, scope evaluation; Control Room v1 for organisation management.
 **Decisions needed:** Q-23, Q-27, Q-30.
 **Exit criteria:** cycle/overlap/one-primary rules and role resolution covered by tests; scope filtering verified.
+**Status:** C1 (organisation API) and C2 (Organisation Builder screens) committed. C3a (employee API) and C3b (employee screens, CP0–CP7: directory, profile, write workflows, separation with preview, account linking, data quality, translations, browser verification) implemented and verified on the test database — **uncommitted, awaiting review**; migrations `0008`–`0009` not applied to the development database. Remaining: C4 (organisation-scoped permissions and scope evaluation), positions, Control Room. Open: Q-45, Q-47, Q-48, Q-53; native-speaker review of bn/hi/gu (Q-58).
 
 ## Stage D — Import framework + profile 1
 

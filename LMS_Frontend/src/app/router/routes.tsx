@@ -1,4 +1,4 @@
-import type { RouteObject } from 'react-router'
+import { Outlet, type RouteObject } from 'react-router'
 
 import { AuditLogPage } from '../../features/admin/AuditLogPage'
 import { UsersPage } from '../../features/admin/UsersPage'
@@ -136,6 +136,115 @@ export const routes: RouteObject[] = [
                       Component: (await import('../../features/organisation/ResponsibilitiesPage'))
                         .ResponsibilitiesPage,
                     }),
+                  },
+                ],
+              },
+              {
+                // Employee area (Stage C3): viewing needs employees.view; the
+                // assignment timeline and history need employees.history.view;
+                // changes and the data-quality report need employees.manage (the
+                // API enforces all of them). Directory and Data quality share the
+                // section-pill shell; profiles have their own header and tabs.
+                path: 'employees',
+                element: (
+                  <RequirePermission permission={PERMISSIONS.EMPLOYEES_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                ),
+                children: [
+                  {
+                    lazy: async () => ({
+                      Component: (await import('../../features/employees/EmployeesLayout')).EmployeesLayout,
+                    }),
+                    children: [
+                      {
+                        index: true,
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/EmployeeDirectoryPage'))
+                            .EmployeeDirectoryPage,
+                        }),
+                      },
+                      {
+                        path: 'data-quality',
+                        lazy: async () => {
+                          const { DataQualityPage } = await import('../../features/employees/DataQualityPage')
+                          return {
+                            element: (
+                              <RequirePermission permission={PERMISSIONS.EMPLOYEES_MANAGE}>
+                                <DataQualityPage />
+                              </RequirePermission>
+                            ),
+                          }
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    path: ':employeeId',
+                    lazy: async () => ({
+                      Component: (await import('../../features/employees/EmployeeProfileLayout'))
+                        .EmployeeProfileLayout,
+                    }),
+                    children: [
+                      {
+                        index: true,
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/tabs/OverviewTab')).OverviewTab,
+                        }),
+                      },
+                      {
+                        path: 'assignments',
+                        lazy: async () => {
+                          const { AssignmentsTab } = await import('../../features/employees/tabs/AssignmentsTab')
+                          return {
+                            element: (
+                              <RequirePermission permission={PERMISSIONS.EMPLOYEES_HISTORY_VIEW}>
+                                <AssignmentsTab />
+                              </RequirePermission>
+                            ),
+                          }
+                        },
+                      },
+                      {
+                        path: 'roles',
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/tabs/FunctionalRolesTab'))
+                            .FunctionalRolesTab,
+                        }),
+                      },
+                      {
+                        path: 'responsibilities',
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/tabs/ResponsibilitiesTab'))
+                            .ResponsibilitiesTab,
+                        }),
+                      },
+                      {
+                        path: 'reporting',
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/tabs/ReportingTab')).ReportingTab,
+                        }),
+                      },
+                      {
+                        path: 'account',
+                        lazy: async () => ({
+                          Component: (await import('../../features/employees/tabs/AccountTab')).AccountTab,
+                        }),
+                      },
+                      {
+                        path: 'history',
+                        lazy: async () => {
+                          const { HistoryTab } = await import('../../features/employees/tabs/HistoryTab')
+                          return {
+                            element: (
+                              <RequirePermission permission={PERMISSIONS.EMPLOYEES_HISTORY_VIEW}>
+                                <HistoryTab />
+                              </RequirePermission>
+                            ),
+                          }
+                        },
+                      },
+                    ],
                   },
                 ],
               },

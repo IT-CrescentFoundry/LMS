@@ -23,6 +23,11 @@ export const PERMISSIONS = {
   DESIGNATIONS_MANAGE: 'designations.manage',
   FUNCTIONAL_ROLES_MANAGE: 'functional_roles.manage',
   RESPONSIBILITIES_MANAGE: 'responsibilities.manage',
+  // Stage C3 - employee master (global grants only until C4)
+  EMPLOYEES_VIEW: 'employees.view',
+  EMPLOYEES_HISTORY_VIEW: 'employees.history.view',
+  EMPLOYEES_MANAGE: 'employees.manage',
+  REPORTING_LINES_MANAGE: 'reporting_lines.manage',
   LEARNING_OWN_VIEW: 'learning.own.view',
   CERTIFICATES_OWN_VIEW: 'certificates.own.view',
   TRAINING_REQUESTS_SUBMIT: 'training_requests.submit',

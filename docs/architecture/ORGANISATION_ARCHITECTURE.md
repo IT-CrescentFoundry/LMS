@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Design only. **Nothing in this document is implemented yet.** Revised in Stage A.1 (functional roles, responsibilities, access-role separation; import design moved to the import-profiles document). |
+| **Status** | Design document. Implemented so far: organisation structure and reference data (C1, C2) and the employee master with its screens (C3a, C3b — uncommitted, awaiting review); see §12. Positions, scoped permissions (C4) and imports (D) are not implemented. Revised in Stage A.1 (functional roles, responsibilities, access-role separation; import design moved to the import-profiles document). |
 | **Stage** | Organisation core: Stage C. Organisation import (profile 1): Stage D. See [roadmap](../LMS_IMPLEMENTATION_ROADMAP.md). |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Related** | [Database design §5](../database/LMS_DATABASE_DESIGN.md) · [Import profiles](../database/EXCEL_IMPORT_PROFILES.md) (profile 1) · [System architecture](LMS_SYSTEM_ARCHITECTURE.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) (ADR-013, ADR-023, ADR-029) |
@@ -226,3 +226,21 @@ The LMS and PMS are **separate applications and databases**. Any future exchange
 ## 11. Open questions
 
 Tracked in the [register](../product/LMS_PRODUCT_REQUIREMENTS.md): **Q-20** (PMS), **Q-23** (functional roles and responsibilities catalogue), **Q-27** (unit types per plant), **Q-28** (HR master-data source), **Q-30** (grades), **Q-31** (import approvers), **Q-21** (retention).
+
+## 12. Implementation status (Stages C1–C3)
+
+What exists in code differs from the design above in these places (API: [API reference §7–9](API_REFERENCE.md); screens: [frontend README](../../LMS_Frontend/README.md#employee-area-stage-c3)):
+
+| Topic | Implemented behaviour |
+|---|---|
+| Employees | Code (letters, digits, `/ . _ -`, ≤ 30, stored in capitals, leading zeros kept), full and display name, preferred language, work email, joining date, last working day, external reference. Status `active` / `on_leave` / `separated` or **not recorded** (never treated as active). No positions, employment type or personal/financial data. Records are never deleted. |
+| Assignments | Types primary, additional, acting, deputation; half-open periods; at most one primary per day; unit required; changes from a date keep history; corrections need a reason. Non-assignable unit types give a warning (Q-55). |
+| Functional roles | Derived from designation mappings over all current assignments, plus manual roles, minus exclusions — computed by the server. Functional roles never grant permissions (§4.12). |
+| Responsibilities | Effective-dated, with optional unit or location context; grant no permissions. |
+| Reporting | Only `LINE_MANAGER` is seeded (Q-52): one current line manager, no self-reporting, no cycles, no separated manager; a new manager from a date replaces the current one. Being a manager grants no access. |
+| Separation | Last working day stored as entered; open records end the following day. Own records and direct reports' lines are ended only with separate explicit confirmations; records starting later block separation. A read-only preview shows the impact first. |
+| Accounts | Login accounts are linked separately (`employees.manage` + `user_accounts.manage`), never automatically; at most one non-disabled account per employee. |
+| Data quality (§6) | Eight server checks on an as-of date: status not recorded, no primary assignment, location missing, designation missing, separated with an active account, line manager not active, no line manager, joining date not recorded. Report only. |
+| Permissions | Global until C4: `employees.view`, `employees.history.view`, `employees.manage`, `reporting_lines.manage` — HR Admin and Super Admin only (Q-51, Q-57). |
+
+Still open: Q-45 (grade and level), Q-47 (sub-functions and departments), Q-48 (plants and functions), Q-53 (designations and job families).

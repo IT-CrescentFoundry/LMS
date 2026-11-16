@@ -12,6 +12,7 @@ const USER = {
   roles: ['employee'],
   last_login_at: null,
   created_at: '2026-11-12T10:00:00Z',
+  employee: null,
 }
 
 const EVENT = {
@@ -47,6 +48,15 @@ describe('admin parsers', () => {
     })
   })
 
+  it('parses the linked employee (Stage C3) and only its known fields', () => {
+    const linked = parseUserSummary({
+      ...USER,
+      employee: { public_id: 'e-1', employee_code: '00042', full_name: 'Test Person', id: 9 },
+    })
+    expect(linked.employee).toEqual({ public_id: 'e-1', employee_code: '00042', full_name: 'Test Person' })
+    expect(() => parseUserSummary({ ...USER, employee: { public_id: 'e-1' } })).toThrow(TypeError)
+  })
+
   it('rejects malformed items', () => {
     expect(() => parseUserSummary({ ...USER, roles: 'employee' })).toThrow(TypeError)
     expect(() => parseAuditEvent({ ...EVENT, occurred_at: 'yesterday' })).toThrow(TypeError)
@@ -67,6 +77,17 @@ describe('adminService', () => {
       limit: '25',
       cursor: 'c1',
     })
+  })
+
+  it('filters by employee link and accepts a page size (account picker)', async () => {
+    const api = mockApi({ 'GET /admin/users': reply({ items: [], next_cursor: null }) })
+
+    await adminService.listUsers({ q: 'ab', linked: false }, null, undefined, 10)
+    await adminService.listUsers({ linked: true }, null)
+
+    const [picker, linked] = api.requestsTo('GET /admin/users')
+    expect(Object.fromEntries(picker.query)).toEqual({ q: 'ab', linked: 'false', limit: '10' })
+    expect(Object.fromEntries(linked.query)).toEqual({ linked: 'true', limit: '25' })
   })
 
   it('lists audit events and omits empty filters', async () => {

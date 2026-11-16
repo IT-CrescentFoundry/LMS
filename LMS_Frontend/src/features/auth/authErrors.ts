@@ -5,6 +5,7 @@ export type ApiErrorMessageKey =
   | 'auth.errors.tooManyAttempts'
   | 'auth.errors.accountInactive'
   | 'auth.errors.originNotAllowed'
+  | 'auth.errors.employeeHasActiveAccount'
   | 'auth.errors.network'
   | 'auth.errors.generic'
 
@@ -30,6 +31,9 @@ export function describeApiError(error: unknown): DescribedError {
       return { key: 'auth.errors.accountInactive' }
     case 'origin_not_allowed':
       return { key: 'auth.errors.originNotAllowed' }
+    case 'employee_has_active_account':
+      // Stage C3: re-activating an account while its employee has another active one.
+      return { key: 'auth.errors.employeeHasActiveAccount' }
     default:
       return { key: 'auth.errors.generic', requestId: error.requestId }
   }

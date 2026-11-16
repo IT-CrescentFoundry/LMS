@@ -2,20 +2,23 @@
 
 Learning Management System for Crescent Foundry employees, covering induction, foundry process education, role-based learning paths, competency development, theoretical and practical assessment, certification, career development and AI-assisted learning. It is multilingual (English, Bengali, Hindi, Gujarati) and usable on phones, tablets, laptops and desktops.
 
-## Current status: Stage B (identity, access and audit) complete
+## Current status: Stage C3 (employee management) implemented, pending review and commit
 
 | Area | State |
 |---|---|
 | Frontend shell (branding, navigation, language selector, responsive layout, API connectivity indicator, dashboard placeholder) | Implemented |
 | Sign-in, session restoration, sign-out, change password, permission-aware navigation | Implemented (Stage B) |
-| Read-only administration: User accounts and Audit log pages | Implemented (Stage B) |
-| Language switching across en / bn / hi / gu | Implemented (Bengali, Hindi and Gujarati strings are drafts awaiting native-speaker review) |
+| Read-only administration: User accounts and Audit log pages | Implemented (Stage B; C3 adds the employee-link filter and a linked-employee column shown only with `employees.view`) |
+| Organisation structure and reference data API; Organisation Builder screens | Implemented (Stages C1, C2) |
+| Employee master API: employees, effective-dated assignments, functional roles (derived, manual, excluded), responsibilities, reporting lines, account links, separation with preview, history, data quality | Implemented (Stage C3a, C3b CP0); **uncommitted, awaiting review** |
+| Employee screens: directory, profile tabs, create/edit, status, assignments, roles, responsibilities, reporting, separation, account linking, data quality | Implemented (Stage C3b); **uncommitted, awaiting review** — see [frontend README](LMS_Frontend/README.md#employee-area-stage-c3) |
+| Language switching across en / bn / hi / gu | Implemented (Bengali, Hindi and Gujarati strings, including all C2 and C3 screens, are machine drafts awaiting native-speaker review — register Q-58) |
 | Backend API: configuration, structured logging, error handling, CORS, liveness and readiness checks | Implemented |
 | Identity and access: user accounts, Argon2id passwords, server-side sessions, CSRF protection, login throttling, access roles and permissions, administration API | Implemented (Stage B) |
 | Append-only audit trail; Super Admin bootstrap through the CLI | Implemented (Stage B) |
-| MySQL database (`crescent_lms_dev`) at Alembic revision `0003`; separate runtime, migration and test accounts | Implemented and verified (Stage B) |
-| Kiosk PIN sign-in, badge QR, OTP/SSO, organisation-scoped roles | **Not implemented** — open questions Q-07, Q-08, Q-09; Stage C |
-| Organisation, employees, imports, learning, assessments, competency, certification, reports, AI | **Not implemented** — see the [roadmap](docs/LMS_IMPLEMENTATION_ROADMAP.md) |
+| MySQL with separate runtime, migration and test accounts; Alembic head `0009` (employees) in the repository | Migrations `0008`–`0009` are verified on the test database only; applying them to `crescent_lms_dev` is a separate, explicit decision |
+| Kiosk PIN sign-in, badge QR, OTP/SSO, organisation-scoped roles (C4) | **Not implemented** — open questions Q-07, Q-08, Q-09; Stage C4 |
+| Imports, learning, assessments, competency, certification, reports, AI | **Not implemented** — see the [roadmap](docs/LMS_IMPLEMENTATION_ROADMAP.md) |
 
 ## Repository structure
 

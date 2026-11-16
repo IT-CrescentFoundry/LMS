@@ -16,7 +16,7 @@ Rules (all data-driven; no role-name comparisons):
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, and_, exists, select
 from sqlalchemy.orm import Session
 
 from app.core.context import RequestMeta
@@ -107,6 +107,23 @@ def ensure_can_manage_account(db: Session, actor: Actor, target: UserAccount) ->
             "insufficient_privilege",
             "This account has privileges you do not hold, so you cannot manage it.",
         )
+
+
+def manageable_by(actor: Actor) -> ColumnElement[bool]:
+    """SQL form of :func:`ensure_can_manage_account`, for filtering account lists.
+
+    True for accounts that are not the actor's own and hold no permission (through
+    an active role) that the actor lacks. Listing is only a convenience: every
+    change still calls ``ensure_can_manage_account``.
+    """
+    lacking = exists().where(
+        UserAccessRole.user_account_id == UserAccount.id,
+        UserAccessRole.revoked_at.is_(None),
+        AccessRolePermission.access_role_id == UserAccessRole.access_role_id,
+        AccessPermission.id == AccessRolePermission.access_permission_id,
+        AccessPermission.code.not_in(sorted(actor.permissions)),
+    )
+    return and_(UserAccount.id != actor.user_id, ~lacking)
 
 
 def _ensure_can_change_role(actor: Actor, target: UserAccount, role: AccessRole) -> None:

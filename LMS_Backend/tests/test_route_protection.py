@@ -62,10 +62,10 @@ def _required_permissions(route: APIRoute) -> set[str]:
     return found
 
 
-def test_admin_and_organisation_routes_require_specific_permissions() -> None:
+def test_admin_organisation_and_employee_routes_require_specific_permissions() -> None:
     checked = 0
     for route in _api_routes(list(api_router.routes)):
-        if not route.path.startswith(("/admin", "/org")):
+        if not route.path.startswith(("/admin", "/org", "/employees")):
             continue
         checked += 1
         assert _required_permissions(route), f"{route.path} has no permission requirement"
@@ -83,6 +83,35 @@ def test_organisation_writes_need_a_manage_permission() -> None:
             assert required and all(code.endswith(".manage") for code in required), route.path
         else:
             assert required == {"organisation.view"}, route.path
+    assert writes > 0
+
+
+EMPLOYEE_PERMISSIONS = {
+    "employees.view",
+    "employees.history.view",
+    "employees.manage",
+    "reporting_lines.manage",
+}
+
+
+def test_employee_routes_use_only_the_interim_employee_permissions() -> None:
+    """C3 (Q-51): global employee codes only; account links also need user_accounts.manage."""
+    writes = 0
+    for route in _api_routes(list(api_router.routes)):
+        if not route.path.startswith("/employees"):
+            continue
+        required = _required_permissions(route)
+        methods = route.methods or set()
+        is_write = bool(methods & {"POST", "PUT", "PATCH", "DELETE"})
+        if is_write and route.path.endswith(("/account", "/account/unlink")):
+            assert required == {"employees.manage", "user_accounts.manage"}, route.path
+            continue
+        assert required <= EMPLOYEE_PERMISSIONS and len(required) == 1, route.path
+        if is_write:
+            writes += 1
+            assert required & {"employees.manage", "reporting_lines.manage"}, route.path
+            if "/reporting" in route.path:
+                assert required == {"reporting_lines.manage"}, route.path
     assert writes > 0
 
 

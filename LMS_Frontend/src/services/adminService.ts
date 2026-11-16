@@ -11,6 +11,7 @@ import type {
   AuditActor,
   AuditEvent,
   AuditFilters,
+  LinkedEmployee,
   Page,
   UserFilters,
   UserSummary,
@@ -27,6 +28,16 @@ export function parsePage<T>(parseItem: (data: unknown) => T): (data: unknown) =
   }
 }
 
+function parseLinkedEmployee(data: unknown): LinkedEmployee | null {
+  if (data === null || data === undefined) return null
+  const record = expectRecord(data, 'linked employee')
+  return {
+    public_id: expectString(record, 'public_id'),
+    employee_code: expectString(record, 'employee_code'),
+    full_name: expectString(record, 'full_name'),
+  }
+}
+
 export function parseUserSummary(data: unknown): UserSummary {
   const record = expectRecord(data, 'user')
   return {
@@ -38,6 +49,7 @@ export function parseUserSummary(data: unknown): UserSummary {
     roles: expectStringArray(record, 'roles'),
     last_login_at: expectNullableDateString(record, 'last_login_at'),
     created_at: expectDateString(record, 'created_at'),
+    employee: parseLinkedEmployee(record.employee),
   }
 }
 
@@ -79,11 +91,14 @@ export const adminService = {
     filters: UserFilters,
     cursor: string | null,
     signal?: AbortSignal,
+    limit: number = USERS_PAGE_SIZE,
   ): Promise<Page<UserSummary>> {
     const query = buildQuery({
       status: filters.status,
       q: filters.q,
-      limit: USERS_PAGE_SIZE,
+      linked: filters.linked,
+      manageable: filters.manageable ? true : undefined,
+      limit,
       cursor,
     })
     return apiRequest(`/admin/users${query}`, { parse: parsePage(parseUserSummary), signal })

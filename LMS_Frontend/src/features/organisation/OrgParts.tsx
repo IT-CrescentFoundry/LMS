@@ -136,11 +136,6 @@ export function WarningList({ warnings }: { warnings: readonly OrgWarning[] }) {
   )
 }
 
-function blockerText(blocker: Blocker, t: ReturnType<typeof useTranslation>['t']): string {
-  if (blocker.type === 'other') return t('org.errors.blockers.other')
-  return t(`org.errors.blockers.${blocker.type}`, { code: blocker.label })
-}
-
 /**
  * A rejected change, with its translated reason. Dependants that block a closure
  * are listed. A version conflict offers to reload instead of overwriting.
@@ -168,9 +163,11 @@ export function ChangeError({ error, onReload }: { error: unknown; onReload?: ()
             <div>
               <p className="font-medium">{t('org.errors.blockersTitle')}</p>
               <ul className="list-disc space-y-0.5 pl-5">
-                {described.blockers.map((blocker, index) => (
+                {described.blockers.map((blocker: Blocker, index) => (
                   <li key={`${blocker.type}-${blocker.label}-${index}`} className="break-words">
-                    {blockerText(blocker, t)}
+                    {blocker.type === 'other'
+                      ? t('org.errors.blockers.other')
+                      : t(`org.errors.blockers.${blocker.type}`, { code: blocker.label })}
                   </li>
                 ))}
               </ul>
@@ -320,10 +317,13 @@ export function SelectField({
   options,
   emptyLabel,
   size,
+  autoFocus,
   ...shell
 }: FieldShell & {
   value: string
   onChange: (value: string) => void
+  /** Initial focus when the dialog opens (Modal looks for data-autofocus). */
+  autoFocus?: boolean
   options: readonly SelectOption[]
   /** Adds a first option with the empty value (e.g. "None"). */
   emptyLabel?: string
@@ -342,6 +342,7 @@ export function SelectField({
         aria-required={shell.required || undefined}
         aria-invalid={shell.error ? true : undefined}
         aria-describedby={describedBy(id, shell.hint, shell.error)}
+        data-autofocus={autoFocus || undefined}
         className={inputClassName(Boolean(shell.error))}
       >
         {emptyLabel !== undefined ? <option value="">{emptyLabel}</option> : null}

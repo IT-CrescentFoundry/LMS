@@ -69,6 +69,13 @@ export interface Page<T> {
   next_cursor: string | null
 }
 
+/** The employee record an account is linked to (Stage C3). */
+export interface LinkedEmployee {
+  public_id: string
+  employee_code: string
+  full_name: string
+}
+
 export interface UserSummary {
   public_id: string
   login_id: string
@@ -78,6 +85,8 @@ export interface UserSummary {
   roles: string[]
   last_login_at: string | null
   created_at: string
+  /** Null when the account is not linked to an employee record. */
+  employee: LinkedEmployee | null
 }
 
 export interface AuditActor {
@@ -103,6 +112,10 @@ export interface AuditEvent {
 export interface UserFilters {
   status?: AccountStatus
   q?: string
+  /** Stage C3: only accounts with (true) or without (false) an employee link. */
+  linked?: boolean
+  /** Only accounts the caller may manage (not their own, no permission they lack). */
+  manageable?: boolean
 }
 
 export interface AuditFilters {

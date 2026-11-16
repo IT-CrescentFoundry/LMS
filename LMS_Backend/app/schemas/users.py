@@ -20,6 +20,14 @@ class RoleGrantOut(BaseModel):
     granted_at: datetime
 
 
+class LinkedEmployee(BaseModel):
+    """The employee record an account is linked to (Stage C3, ADR-040)."""
+
+    public_id: uuid.UUID
+    employee_code: str
+    full_name: str
+
+
 class UserSummary(BaseModel):
     public_id: uuid.UUID
     login_id: str
@@ -29,6 +37,7 @@ class UserSummary(BaseModel):
     roles: list[str]
     last_login_at: datetime | None
     created_at: datetime
+    employee: LinkedEmployee | None = None
 
 
 class UserDetail(UserSummary):

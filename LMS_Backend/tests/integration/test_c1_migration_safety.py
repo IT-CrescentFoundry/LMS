@@ -19,11 +19,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Connection, Engine, text
-from sqlalchemy.orm import Session
 
 from app.core import config as app_config
 from app.core.config import BACKEND_DIR
-from tests.integration.helpers import make_user
 from tests.integration.test_migration_cli_path import _cli_settings
 from tests.support.database import IntegrationDatabaseSettings, assert_connected_to
 from tests.support.schema_reset import _alembic_config, alembic_head, rebuild_test_schema
@@ -174,10 +172,16 @@ def _grant(db: MigrationDb, role: str, permission: str) -> None:
 
 
 def _regrant(db: MigrationDb) -> None:
-    with Session(bind=db.engine) as session:
-        assert_connected_to(session.connection(), db.name)
-        user = make_user(session, "migration.admin", roles=())
-        user_id = user.id
+    # Plain SQL, not the ORM model: the model follows head (C3 added columns), while
+    # this runs against the schema at revision 0007.
+    db.run(
+        "INSERT INTO user_account (public_id, login_id, display_name, status, "
+        "status_changed_at, password_must_change, created_at, updated_at, version) "
+        "VALUES (UUID_TO_BIN(UUID()), 'migration.admin', 'Test migration.admin', "
+        "'pending_activation', "
+        "NOW(6), 0, NOW(6), NOW(6), 1)"
+    )
+    user_id = db.scalar("SELECT id FROM user_account WHERE login_id = 'migration.admin'")
     db.run(
         "UPDATE access_role_permission m JOIN access_role r ON r.id = m.access_role_id "
         "JOIN access_permission p ON p.id = m.access_permission_id "
@@ -219,6 +223,10 @@ DOWNGRADE_0007_CASES: dict[str, tuple[Callable[[MigrationDb], None], str]] = {
 
 @pytest.mark.parametrize("case", list(DOWNGRADE_0007_CASES))
 def test_0007_downgrade_refuses_changed_permission_data(mdb: MigrationDb, case: str) -> None:
+    # Start at 0007 itself (as the other revision tests do): the harness runs a
+    # multi-revision downgrade in one transaction, so a refusal below later revisions
+    # would mix their committed DDL with a rolled-back version row.
+    mdb.migrate("downgrade", "0007")
     change, message = DOWNGRADE_0007_CASES[case]
     change(mdb)
     mappings_before = mdb.org_mappings()

@@ -31,7 +31,11 @@ from app.models.audit import AuditOutcome
 from app.models.identity import AccountStatus, UserAccount, UserSession
 from app.schemas.errors import ValidationIssue
 from app.services.audit_service import AuditEventType, TargetType, record_audit_event
-from app.services.identity.access_control import ensure_can_manage_account, grant_roles
+from app.services.identity.access_control import (
+    ensure_can_manage_account,
+    grant_roles,
+    manageable_by,
+)
 from app.services.identity.context import Actor
 from app.services.identity.sessions import RevokeReason, revoke_session, revoke_user_sessions
 
@@ -207,6 +211,30 @@ def update_account(
     return target
 
 
+def _active_link_error() -> AppError:
+    return AppError(
+        409,
+        "employee_has_active_account",
+        "The linked employee already has another account that is not disabled.",
+    )
+
+
+def _ensure_no_other_active_link(db: Session, target: UserAccount) -> None:
+    """Re-enabling a disabled account must keep one non-disabled account per employee."""
+    other = db.scalar(
+        select(UserAccount.id)
+        .where(
+            UserAccount.employee_id == target.employee_id,
+            UserAccount.id != target.id,
+            UserAccount.status != AccountStatus.DISABLED.value,
+        )
+        .with_for_update(read=True)
+        .limit(1)
+    )
+    if other is not None:
+        raise _active_link_error()
+
+
 def change_account_status(
     db: Session,
     *,
@@ -227,6 +255,8 @@ def change_account_status(
         )
     if new_status is AccountStatus.ACTIVE and target.password_hash is None:
         raise AppError(409, "password_required", "Set a password before activating the account.")
+    if current is AccountStatus.DISABLED and target.employee_id is not None:
+        _ensure_no_other_active_link(db, target)
 
     target.status = new_status.value
     target.status_changed_at = now
@@ -246,7 +276,10 @@ def change_account_status(
             actor_user_id=actor.user_id,
             now=now,
         )
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:  # concurrent link: unique linked_employee_active (Stage C3)
+        raise _active_link_error() from exc
     record_audit_event(
         db,
         event_type=_STATUS_EVENTS[new_status],
@@ -395,10 +428,17 @@ def list_accounts(
     search: str | None,
     limit: int,
     cursor: str | None,
+    linked: bool | None = None,
+    manageable_for: Actor | None = None,
 ) -> tuple[list[UserAccount], str | None]:
     query = select(UserAccount).order_by(UserAccount.id.desc()).limit(limit + 1)
+    if manageable_for is not None:  # only accounts this actor may manage (pickers)
+        query = query.where(manageable_by(manageable_for))
     if status is not None:
         query = query.where(UserAccount.status == status.value)
+    if linked is not None:  # Stage C3: accounts with / without an employee link
+        column = UserAccount.employee_id
+        query = query.where(column.is_not(None) if linked else column.is_(None))
     if search and search.strip():
         pattern = _like_pattern(search)
         query = query.where(

@@ -67,6 +67,23 @@ class AuditEventType(StrEnum):
     DESIGNATION_ROLE_MAPPING_ENDED = "designation_role_mapping.ended"
     RESPONSIBILITY_CREATED = "responsibility.created"
     RESPONSIBILITY_UPDATED = "responsibility.updated"
+    # Stage C3 - employees (target: the employee; metadata names the sub-record)
+    EMPLOYEE_CREATED = "employee.created"
+    EMPLOYEE_CORRECTED = "employee.corrected"
+    EMPLOYEE_STATUS_CHANGED = "employee.status_changed"
+    ASSIGNMENT_CREATED = "employee_assignment.created"
+    ASSIGNMENT_CHANGED = "employee_assignment.changed"
+    ASSIGNMENT_ENDED = "employee_assignment.ended"
+    ASSIGNMENT_CORRECTED = "employee_assignment.corrected"
+    EMPLOYEE_ROLE_ASSIGNED = "employee_functional_role.assigned"
+    EMPLOYEE_ROLE_EXCLUDED = "employee_functional_role.excluded"
+    EMPLOYEE_ROLE_ENDED = "employee_functional_role.ended"
+    EMPLOYEE_RESPONSIBILITY_ASSIGNED = "employee_responsibility.assigned"
+    EMPLOYEE_RESPONSIBILITY_ENDED = "employee_responsibility.ended"
+    REPORTING_CREATED = "reporting_relationship.created"
+    REPORTING_ENDED = "reporting_relationship.ended"
+    EMPLOYEE_ACCOUNT_LINKED = "employee_account.linked"
+    EMPLOYEE_ACCOUNT_UNLINKED = "employee_account.unlinked"
 
 
 class TargetType(StrEnum):
@@ -83,6 +100,7 @@ class TargetType(StrEnum):
     FUNCTIONAL_ROLE = "functional_role"
     DESIGNATION_ROLE_MAPPING = "designation_role_mapping"
     RESPONSIBILITY = "responsibility"
+    EMPLOYEE = "employee"
 
 
 _FORBIDDEN_KEY_FRAGMENTS = ("password", "token", "secret", "hash", "csrf", "cookie", "credential")

@@ -61,7 +61,7 @@ LMS/
 └── README.md            setup and development guide
 ```
 
-## 4. Frontend architecture — *Implemented (shell, sign-in, read-only administration)*
+## 4. Frontend architecture — *Implemented (shell, sign-in, administration, Organisation Builder, employee management)*
 
 **Stack:** React 19, TypeScript 6, Vite 8, Tailwind CSS 4 (via `@tailwindcss/vite`), React Router 8, TanStack Query 5, i18next 27 + react-i18next 18, Lucide icons. Tests: Vitest 5, React Testing Library, jsdom.
 
@@ -70,10 +70,11 @@ src/
 ├── app/            providers (TanStack Query + AuthProvider), router (route table), navigation model
 ├── layouts/        AppLayout (header, sidebar, mobile drawer, user menu), SidebarNav, AuthLayout
 ├── features/       auth/ (session, guards, sign-in, change password), admin/ (users, audit log),
-│                   dashboard/, system-status/, errors/
+│                   organisation/ (C2 Organisation Builder), employees/ (C3 directory, profile,
+│                   write dialogs, separation, data quality), dashboard/, system-status/, errors/
 ├── components/     BrandMark, LanguageSelector, ConnectivityIndicator, Loading/Error states, badges
 ├── hooks/          cross-feature hooks (none yet)
-├── services/       typed API functions per backend area (health, auth, admin)
+├── services/       typed API functions per backend area (health, auth, admin, organisation, employee)
 ├── lib/            apiClient (typed fetch, ApiError, in-memory CSRF token), parse, format, config
 ├── i18n/           i18next setup, language registry, locales/{en,bn,hi,gu}
 ├── styles/         Tailwind entry + design tokens (@theme)
@@ -82,6 +83,8 @@ src/
 ```
 
 **Data flow:** component → feature hook (TanStack Query) → service → `apiRequest` → `fetch`; every response passes a runtime `parse` function. **State:** server state in TanStack Query; UI state local; no global store yet. **Errors/loading:** `ApiError` (network, timeout, http, invalid_response) with backend code and request ID; shared `LoadingState`/`ErrorState`; router error boundary. **API configuration:** `VITE_API_BASE_URL` (default `/api/v1`), dev/preview proxy to the backend (ADR-011). **Responsive:** drawer navigation below `lg`, sidebar at `lg`+; administration tables stack into labelled cards on narrow screens; verified in a real browser at 360/390/768/1024/1280 px in all four languages. **Authentication (Stage B, ADR-050):** HttpOnly session cookie (never visible to scripts), CSRF token in memory only, session restored through `GET /api/v1/auth/session`, route guards (`RequireAuth`, `PublicOnlyRoute`, `RequirePermission`), navigation driven by permission codes as a UX layer only — the API enforces every permission. **Accessibility baseline:** landmarks, skip link, labelled controls, `aria-live` status, keyboard-operable drawer.
+
+**Employee area (Stage C3):** routes `/employees` (directory), `/employees/data-quality` (`employees.manage`, read-only report) and `/employees/:id/…` (profile tabs; assignments and history need `employees.history.view`). All business rules — overlaps, one primary assignment, functional-role derivation, reporting cycles, separation blockers and the eight data-quality checks — are evaluated by the API; the browser never re-implements them. End dates are entered as the *last day in effect* and converted once to the API's exclusive `effective_to`; the separation date (*Last Working Day*) is sent unchanged. Separation shows a read-only server preview and needs separate confirmations for the employee's own records and for direct reports. Account links need `employees.manage` and `user_accounts.manage`; the picker lists only accounts the caller may manage (server-side). Details: [frontend README](../../LMS_Frontend/README.md#employee-area-stage-c3). **Performance:** catalogues are bundled eagerly; the main chunk is ~720 kB (≈184 kB gzip) and per-language lazy loading is a proposed follow-up.
 
 ### 4.1 Planned experiences — *Planned* (ADR-031)
 
@@ -300,7 +303,7 @@ Failure details are logged server-side only; probes log at DEBUG. Planned: migra
 
 ## 9. Internationalisation — *Implemented (UI framework)*
 
-en/bn/hi/gu with English fallback; preference → browser → English; `<html lang>` follows; type-checked keys and a key-parity test; system font stack for Indic scripts. Stage A and Stage B translations (including the sign-in, password and administration screens) are drafts pending native-speaker review. Learning content, question, checklist, certificate and skill-level translations are data (translation tables) with per-language status. **[C]** / **[P]**
+en/bn/hi/gu with English fallback; preference → browser → English; `<html lang>` follows; type-checked keys and a key-parity test; system font stack for Indic scripts. Stage A, B, C2 and C3 translations (sign-in, password, administration, Organisation Builder and employee screens) are machine drafts pending native-speaker review (register Q-58); tests enforce identical keys and placeholders and that every employee-area string is translated. Learning content, question, checklist, certificate and skill-level translations are data (translation tables) with per-language status. **[C]** / **[P]**
 
 ## 10. Configuration and logging — *Implemented*
 

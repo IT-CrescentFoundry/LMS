@@ -1,4 +1,4 @@
-# LMS API Reference (Stages B and C1)
+# LMS API Reference (Stages B, C1 and C3)
 
 | | |
 |---|---|
@@ -15,10 +15,10 @@
 | Identifiers | Resources are addressed by `public_id` (UUIDv7) — never by internal numeric keys (ADR-049). |
 | Session | HttpOnly cookie `lms_session` (`__Host-lms_session` when Secure), set by sign-in and password change. Browsers send it automatically; the token is never in a response body (ADR-043). |
 | CSRF | **Every** POST/PUT/PATCH/DELETE needs an `Origin` (or `Referer`) listed in `LMS_TRUSTED_ORIGINS`, otherwise `403 origin_not_allowed`. Authenticated state-changing requests also need `X-CSRF-Token: <csrf_token>`, otherwise `403 csrf_failed`. Sign-in needs no token (ADR-044). |
-| Authorisation | Deny by default. Each non-public route requires a session and, for administration and organisation data, a permission code. Missing permission → `403 forbidden` (audited as `authorization.denied`). Accounts that must change their password get `403 password_change_required` on permission-guarded routes. |
-| Pagination | `limit` + opaque `cursor`; responses are `{"items": [...], "next_cursor": "…" \| null}` — newest first for administration lists, by `code` for organisation lists. Pass `next_cursor` back as `cursor`. A malformed cursor → `422 invalid_cursor`. Small organisation catalogues (unit types, locations, job families, grades, levels) are returned as plain arrays. |
+| Authorisation | Deny by default. Each non-public route requires a session and, for administration, organisation and employee data, a permission code. Missing permission → `403 forbidden` (audited as `authorization.denied`). Accounts that must change their password get `403 password_change_required` on permission-guarded routes. |
+| Pagination | `limit` + opaque `cursor`; responses are `{"items": [...], "next_cursor": "…" \| null}` — newest first for administration lists, by `code` for organisation lists and by `employee_code` for employee lists. Pass `next_cursor` back as `cursor`. A malformed cursor → `422 invalid_cursor`. Small organisation catalogues (unit types, locations, job families, grades, levels) are returned as plain arrays. |
 | Versions | Records that can be changed carry `version`. Every change request sends the `version` it last read; a stale value → `409 version_conflict` (reload and retry). |
-| Dates | Business dates are `YYYY-MM-DD`. Effective periods are half-open `[effective_from, effective_to)`; `effective_from: null` means the start was not recorded. `as_of` defaults to today's business date (`LMS_BUSINESS_UTC_OFFSET_MINUTES`, default UTC+05:30). |
+| Dates | Business dates are `YYYY-MM-DD`. Effective periods are half-open `[effective_from, effective_to)`: `effective_to` is the first day on which a record no longer applies (user interfaces should label it accordingly, e.g. "Ends (exclusive)" or show the last day as `effective_to − 1`); `effective_from: null` means the start was not recorded. `as_of` defaults to today's business date (`LMS_BUSINESS_UTC_OFFSET_MINUTES`, default UTC+05:30). |
 | Errors | `{"error": {"code", "message", "details"?, "request_id"?}}`. `code` is stable and translated by the frontend; `message` is a safe English fallback; validation `details` are `[{location, message, type}]` and never echo submitted values. |
 | Request ID | `X-Request-ID` is accepted if well-formed, otherwise generated; always returned. |
 | Caching | `Cache-Control: no-store` on every response. |
@@ -55,7 +55,7 @@ All require a session; state-changing calls require the CSRF token. Business rul
 
 | Method | Path | Permission | Request | Success |
 |---|---|---|---|---|
-| GET | `/admin/users` | `user_accounts.view` | query `status?` (`pending_activation` \| `active` \| `suspended` \| `disabled`), `q?` (≤ 100; login ID or name contains), `limit` 1–100 (default 25), `cursor?` | `200 Page[UserSummary]` |
+| GET | `/admin/users` | `user_accounts.view` | query `status?` (`pending_activation` \| `active` \| `suspended` \| `disabled`), `q?` (≤ 100; login ID or name contains), `linked?` (C3: `true` = linked to an employee, `false` = not linked), `manageable?` (C3b: `true` = only accounts the caller may manage — not their own, no permission the caller lacks; the same rule as every change, used by the employee account picker), `limit` 1–100 (default 25), `cursor?` | `200 Page[UserSummary]` |
 | POST | `/admin/users` | `user_accounts.manage` | `{login_id (2–64), display_name, email?, temporary_password, roles? (default ["employee"])}` | `201 UserDetail` (status `pending_activation`, must change password) |
 | GET | `/admin/users/{public_id}` | `user_accounts.view` | – | `200 UserDetail` |
 | PATCH | `/admin/users/{public_id}` | `user_accounts.manage` | `{display_name?, email?}` | `200 UserDetail` |
@@ -69,11 +69,12 @@ All require a session; state-changing calls require the CSRF token. Business rul
 | POST | `/admin/users/{public_id}/roles` | `user_roles.assign` (+ the role's own assign permission) | `{role}` | `200 UserDetail` |
 | DELETE | `/admin/users/{public_id}/roles/{role_code}` | `user_roles.assign` (+ the role's own assign permission) | – | `200 UserDetail` |
 
-Errors: `404 user_not_found` / `session_not_found` / `role_not_found` / `role_not_granted`; `409 login_id_taken` / `email_taken` / `conflict` / `role_already_granted` / `invalid_status_transition` / `password_required`; `422 invalid_login_id` / `password_policy`; `403 self_modification_forbidden` / `insufficient_privilege` / `role_not_assignable` / `privilege_escalation`.
+Errors: `404 user_not_found` / `session_not_found` / `role_not_found` / `role_not_granted`; `409 login_id_taken` / `email_taken` / `conflict` / `role_already_granted` / `invalid_status_transition` / `password_required` / `employee_has_active_account` (C3: re-activating a disabled account while the same employee has another account that is not disabled); `422 invalid_login_id` / `password_policy`; `403 self_modification_forbidden` / `insufficient_privilege` / `role_not_assignable` / `privilege_escalation`.
 
 ```text
 UserSummary { public_id, login_id, display_name, email | null, status, roles: [role_code],
-              last_login_at | null, created_at }
+              last_login_at | null, created_at,
+              employee: {public_id, employee_code, full_name} | null }   (C3: linked employee; null unless the caller also holds employees.view)
 UserDetail  = UserSummary + { password_must_change, status_changed_at, status_reason | null,
               activated_at | null, deactivated_at | null, password_changed_at | null,
               role_grants: [{role, granted_at}] }
@@ -146,7 +147,7 @@ Structure rules:
 * **Codes** are upper-cased, `[A-Z0-9][A-Z0-9_-]{0,49}`, and unique per catalogue (case-insensitive). **Names** are unique only among siblings (same parent, overlapping dates): two plants may each have a "Maintenance" department.
 * A parent must exist for the whole period of a placement; a unit has at most one parent on any date; cycles are refused. Parent-type rules either warn (`advisory`: returned in `warnings` and recorded in the audit event) or reject (`strict`).
 * Hierarchy changes are serialised by a database lock, so concurrent moves cannot together create a cycle.
-* **Closing** is refused while the unit has active children, active functional roles it owns, or open designation mappings scoped to it; `details` lists each blocker (`active_child`, `owned_functional_role`, `scoped_mapping`).
+* **Closing** is refused while the unit has active children, active functional roles it owns, or open designation mappings scoped to it; `details` lists each blocker (`active_child`, `owned_functional_role`, `scoped_mapping`, and from C3 `employee_assignment` / `employee_responsibility` for employee records in the unit that continue after the closure date). Correcting a unit's start date to later than an employee assignment or responsibility in it is refused (`422 period_conflict`).
 
 Errors: `404 unit_type_not_found` / `org_unit_not_found` / `location_not_found`; `409 unit_type_code_taken` / `unit_code_taken` / `location_code_taken` / `sibling_name_taken` / `later_change_exists` / `unit_has_dependants` / `unit_already_closed` / `unit_not_closed` / `parent_closed` / `location_in_use` / `version_conflict`; `422 invalid_code` / `invalid_period` / `parent_not_active` / `type_rule_violation` / `hierarchy_cycle` / `move_date_invalid` / `no_change` / `period_conflict` / `unit_type_inactive` / `location_inactive` / `invalid_time_zone`.
 
@@ -204,7 +205,7 @@ Reads require `organisation.view`. None of these records grant LMS permissions, 
 | GET | `/org/responsibilities/{public_id}` | `organisation.view` | – | `200 ResponsibilityOut` |
 | PATCH | `/org/responsibilities/{public_id}` | `responsibilities.manage` | `{version, code?, name?, description?, category?, is_active?, translations?}` | `200 ResponsibilityOut` |
 
-Mapping rules: a designation may map to many roles, and a role may come from many designations. The same designation, role and scope cannot have overlapping periods (`409 mapping_overlap`). A scoped mapping applies to the scope unit and, by default, its descendants. Employees' derived roles will be computed from these mappings in Stage C3.
+Mapping rules: a designation may map to many roles, and a role may come from many designations. The same designation, role and scope cannot have overlapping periods (`409 mapping_overlap`). A scoped mapping applies to the scope unit and, by default, its descendants. Employees' derived functional roles are computed from these mappings (§10).
 
 Errors: `404 job_family_not_found` / `grade_not_found` / `job_level_not_found` / `designation_not_found` / `functional_role_not_found` / `responsibility_not_found` / `mapping_not_found`; `409 <kind>_code_taken` / `designation_in_use` / `functional_role_in_use` / `mapping_overlap` / `mapping_already_ended` / `version_conflict`; `422 invalid_code` / `job_family_cycle` / `job_family_inactive` / `designation_inactive` / `functional_role_inactive` / `unit_closed` / `unit_not_active` / `invalid_period`.
 
@@ -222,6 +223,106 @@ ResponsibilityOut { public_id, code, name, description, category, is_active, tra
 
 Audit event types added in C1: `org_unit_type.created`, `org_unit_type.updated`, `org_unit_type.parent_rules_changed`, `org_unit.created`, `org_unit.corrected`, `org_unit.moved`, `org_unit.closed`, `org_unit.reopened`, `location.created`, `location.updated`, `job_family.created`, `job_family.updated`, `grade.created`, `grade.updated`, `job_level.created`, `job_level.updated`, `designation.created`, `designation.updated`, `functional_role.created`, `functional_role.updated`, `designation_role_mapping.created`, `designation_role_mapping.ended`, `responsibility.created`, `responsibility.updated`.
 
-## 9. Not exposed over HTTP
+## 9. Employees (`/api/v1/employees`) — Stage C3
 
-Super Admin creation, grant and revocation exist only as CLI commands (`python -m app.cli …`, ADR-047). Kiosk PIN sign-in, badge tokens and certificate verification (Q-08, Q-09; Stage J), employees, assignments, reporting lines and organisation-scoped role assignment (Stages C3–C4), and Excel imports (Stage D) are not implemented.
+Employee records are **separate from login accounts** (ADR-040): an employee may have no account, and an account may have no employee. Interim permissions (Q-51; global only — scoped access is Stage C4): `employees.view`, `employees.history.view`, `employees.manage` and `reporting_lines.manage`, all held by HR Admin and Super Admin only. Account linking needs **both** `employees.manage` and `user_accounts.manage`. Being a manager in a reporting line grants **no** role and no data access. Every change is audited with target type `employee` (the employee's `public_id`), so an employee's history is a single query.
+
+| Method | Path | Permission | Request | Success |
+|---|---|---|---|---|
+| GET | `/employees` | `employees.view` | query `as_of?`, `q?` (code or name contains), `status?` (`active` \| `on_leave` \| `separated` \| `unknown`), `unit?` + `include_descendants?`, `location?`, `designation?`, `has_account?`, `limit` 1–200 (default 50), `cursor?` | `200 Page[EmployeeSummary]` (by `employee_code`) |
+| POST | `/employees` | `employees.manage` | `{employee_code, full_name, display_name?, preferred_language? (en \| bn \| hi \| gu), work_email?, employment_status? (null = not recorded), date_of_joining?, date_of_separation? (separated only), external_ref?}` | `201 EmployeeOut` |
+| GET | `/employees/reporting-types` | `employees.view` | – | `200 [ReportingTypeOut]` (C3 seeds only `LINE_MANAGER`) |
+| GET | `/employees/data-quality` | `employees.manage` | query `as_of?`, `check?`, `limit` 1–200, `cursor?` | `200 DataQualityOut` (counts for every check; the employees failing `check`) |
+| GET | `/employees/{public_id}` | `employees.view` | query `as_of?` | `200 EmployeeOut` |
+| PATCH | `/employees/{public_id}` | `employees.manage` | **Correction**: `{version, reason?, employee_code?, full_name?, display_name?, preferred_language?, work_email?, date_of_joining?, external_ref?}` | `200 EmployeeOut` |
+| POST | `/employees/{public_id}/employment-status` | `employees.manage` | `{version, status (active \| on_leave \| separated), separation_date? (last working day; required for separated), end_open_records? (default false), end_direct_reports? (default false), reason?}` | `200 EmployeeOut` |
+| GET | `/employees/{public_id}/separation-preview` | `employees.manage` | query `separation_date` (required; the last working day, sent unchanged) | `200 SeparationPreviewOut`. **Read-only**: nothing is written or audited. The separation itself re-checks everything under locks, so a preview can become stale and the POST may still return `409` |
+| GET | `/employees/{public_id}/history` | `employees.history.view` | query `limit` 1–100 (default 50), `cursor?` | `200 Page[AuditEventOut]` (newest first; `source_ip` and `user_agent` are omitted — they remain in the audit log under `audit.view`) |
+| GET | `/employees/{public_id}/assignments` | `employees.history.view` | query `include_ended?` (default true) | `200 [AssignmentOut]` (timeline) |
+| POST | `/employees/{public_id}/assignments` | `employees.manage` | `{assignment_type? (primary \| additional \| acting \| deputation; default primary), org_unit_id, designation_id?, grade_id?, job_level_id?, location_id?, effective_from?, effective_to?, reason?}` | `201 AssignmentWriteOut` |
+| POST | `/employees/{public_id}/assignments/{assignment_id}/change` | `employees.manage` | **Business change from a date** (transfer, designation, grade, level or location): `{version, effective_date, org_unit_id?, designation_id?, grade_id?, job_level_id?, location_id?, reason?}` — closes the row at `effective_date` and opens an updated copy | `201 AssignmentWriteOut` (the new row) |
+| POST | `/employees/{public_id}/assignments/{assignment_id}/end` | `employees.manage` | `{version, effective_to, reason?}` | `200 AssignmentOut` |
+| PATCH | `/employees/{public_id}/assignments/{assignment_id}` | `employees.manage` | **Correction** (the explicit mechanism for back-dated fixes): `{version, reason?, assignment_type?, org_unit_id?, designation_id?, grade_id?, job_level_id?, location_id?, effective_from?, effective_to?}` | `200 AssignmentWriteOut` |
+| GET | `/employees/{public_id}/functional-roles` | `employees.view` | query `as_of?`, `include_ended?` | `200 FunctionalRolesOut` |
+| POST | `/employees/{public_id}/functional-roles` | `employees.manage` | `{functional_role_id, kind? (manual \| exclusion; default manual), effective_from?, effective_to?, reason?}` | `201 RoleRecordOut` |
+| POST | `/employees/{public_id}/functional-roles/{record_id}/end` | `employees.manage` | `{effective_to, reason?}` | `200 RoleRecordOut` |
+| GET | `/employees/{public_id}/responsibilities` | `employees.view` | query `include_ended?` | `200 [ResponsibilityRecordOut]` |
+| POST | `/employees/{public_id}/responsibilities` | `employees.manage` | `{responsibility_id, context_unit_id?, context_location_id?, effective_from?, effective_to?, reason?}` | `201 ResponsibilityRecordOut` |
+| POST | `/employees/{public_id}/responsibilities/{record_id}/end` | `employees.manage` | `{effective_to, reason?}` | `200 ResponsibilityRecordOut` |
+| GET | `/employees/{public_id}/reporting` | `employees.view` | query `as_of?` | `200 ReportingOut` (managers on `as_of`, full history, direct reports on `as_of`) |
+| POST | `/employees/{public_id}/reporting` | `reporting_lines.manage` | `{manager_id, relationship_type_id? (default LINE_MANAGER), effective_from?, reason?}` — a new line manager closes the current one on `effective_from` | `201 ReportingRecordOut` |
+| POST | `/employees/{public_id}/reporting/{record_id}/end` | `reporting_lines.manage` | `{effective_to, reason?}` | `200 ReportingRecordOut` |
+| GET | `/employees/{public_id}/account` | `employees.view` | – | `200 EmployeeAccountOut` |
+| PUT | `/employees/{public_id}/account` | `employees.manage` + `user_accounts.manage` | `{user_public_id, reason?}` | `200 EmployeeAccountOut` |
+| POST | `/employees/{public_id}/account/unlink` | `employees.manage` + `user_accounts.manage` | `{user_public_id, reason?}` — removes the link only; the account is unchanged | `200 EmployeeAccountOut` |
+
+Employee rules:
+
+* **Employee code**: mandatory, at most 30 characters, trimmed and stored in capitals; letters, digits, `/`, `.`, `_`, `-` (Q-54). Always text — leading zeros are kept (`00123` and `123` are different codes). Unique ignoring case.
+* **Employment status** is `active`, `on_leave`, `separated` or **null = not recorded**. An unknown status is never treated as active: the directory filter `status=unknown` and the data-quality check `unknown_status` show it explicitly. The history of status changes is kept in the audit trail (Q-56).
+* **Separation**: `date_of_separation` is the employee's **last working day**. Because periods are half-open, records ended by separation get `effective_to` = the **following day** (the first day they no longer apply): separation on 30 June ends records with `effective_to: 1 July`. Separation ends nothing silently. It is refused (`409 open_records_on_separation`) while records continue after the separation date, and `details` lists every one (`location` = `[kind, code]`):
+  * the employee's own records — `open_assignment`, `open_functional_role`, `open_responsibility`, `open_reporting_line` (the employee as subordinate; code = manager). `end_open_records: true` ends them in the same transaction;
+  * reporting lines of the employee's **direct reports** (the employee as manager) — `open_direct_report` (code = the subordinate). These belong to other employees, so they need their own explicit confirmation, `end_direct_reports: true`. Each one ended this way is also audited on the subordinate (`reporting_relationship.ended` with `cause: manager_separated`);
+  * `starts_after_separation` — a record starting after the last working day, which cannot be ended this way and must be corrected or ended first.
+
+  Rows ended by separation record the acting administrator (`ended_by`, and `updated_by` on assignments) in the same transaction, and the `employee.status_changed` event lists them under `ended_records`. Separation **never** changes the linked LMS account (Q-50).
+* **Concurrency and lock order**: every write to reporting lines (set or end a manager) and every separation first takes the reporting graph lock, then locks the employee rows involved in ascending internal order, then reads dependent rows with locking reads. Concurrent operations on the same employees therefore wait for each other instead of deadlocking, and the one that runs second sees the first one's committed result (for example, a new direct report added while the manager is being separated is listed as a blocker, and a manager separated first cannot receive a new report: `422 manager_separated`).
+* **Assignments**: half-open periods; at most one primary on any date; no overlapping assignments to the same unit; additional, acting and deputation assignments may overlap the primary. The unit must exist for the whole new period, and newly chosen designation, grade, level and location must be active. Records must fall inside known employment dates (a start date is required once the joining date is known). Assigning to a unit type with `allows_employee_assignment = false` only warns (`unit_type_not_assignable`, Q-55). History is never overwritten: business changes close and reopen rows; corrections are audited before and after.
+* **Organisation context** (`primary_unit`, `path`) is derived as of the requested date from the hierarchy, so a later reorganisation does not rewrite where an employee sat.
+* **Functional roles** on a date = roles derived from **every** assignment covering it (through designation → role mappings, honouring scope and descendants) + manual roles − exclusions. Derived roles are computed, never stored; an excluded role is listed with `effective: false`. Functional roles grant no permissions.
+* **Responsibilities** may carry a unit and/or location context; the same responsibility in the same context cannot overlap. Nothing is seeded, and responsibilities grant no permission or practical authorisation.
+* **Reporting lines**: no self-reporting, no cycles (serialised by a database lock), at most one line manager on any date, and the manager must not be separated. Only `LINE_MANAGER` is seeded (Q-52).
+* **Account links**: at most one non-disabled linked account per employee (enforced by the database); disabled accounts keep their link as history. The Stage B guards apply (no self-linking; no linking accounts holding permissions the actor lacks). The employee code is never forced as the login ID (Q-50). `flags` lists mismatches for review: `separated_with_active_account`, `email_mismatch`.
+* **Data-quality checks** (report only; nothing is corrected): `unknown_status`, `no_primary_assignment`, `missing_location` (neither the assignment nor its unit has one), `missing_designation`, `separated_with_active_account`, `manager_inactive` (line manager separated or on leave), `no_line_manager`, `incomplete_record` (joining date not recorded). Employees with unknown status are included wherever current employees are checked.
+
+Errors: `404 employee_not_found` / `assignment_not_found` / `role_assignment_not_found` / `responsibility_record_not_found` / `reporting_relationship_not_found` / `reporting_type_not_found` / `manager_not_found` / `user_not_found` / `org_unit_not_found` / `designation_not_found` / `grade_not_found` / `level_not_found` / `location_not_found` / `functional_role_not_found` / `responsibility_not_found`; `409 employee_code_taken` / `open_records_on_separation` / `primary_overlap` / `assignment_overlap` / `assignment_already_ended` / `record_already_ended` / `role_assignment_overlap` / `responsibility_overlap` / `manager_overlap` / `reporting_cycle` / `later_change_exists` / `account_already_linked` / `employee_has_active_account` / `account_not_linked` / `version_conflict`; `422 invalid_employee_code` / `invalid_employment_dates` / `separation_date_required` / `separation_date_not_allowed` / `outside_employment_period` / `assignment_start_required` / `unit_required` / `unit_not_active` / `reference_inactive` / `change_date_invalid` / `invalid_period` / `functional_role_inactive` / `responsibility_inactive` / `location_inactive` / `self_reporting` / `manager_separated` / `reporting_type_inactive` / `invalid_check` / `no_change`; `403 self_modification_forbidden` / `insufficient_privilege` (account links).
+
+```text
+EmployeeRef     { public_id, employee_code, full_name, employment_status | null }
+EmployeeSummary { public_id, employee_code, full_name, display_name | null,
+                  employment_status: active | on_leave | separated | null, as_of,
+                  primary_unit: RefOut | null, path: [RefOut] (root to the unit's parent),
+                  designation: RefOut | null, location: RefOut | null (assignment, else unit),
+                  line_manager: EmployeeRef | null, has_active_account }
+EmployeeOut     = EmployeeSummary + { preferred_language | null, work_email | null,
+                  date_of_joining | null, date_of_separation | null, external_ref | null,
+                  accounts: [AccountRef], version, created_at, updated_at }
+AccountRef      { public_id, login_id, display_name, status }
+AssignmentOut   { public_id, assignment_type, org_unit: RefOut, designation, grade, job_level,
+                  location (each RefOut | null), effective_from | null, effective_to | null,
+                  source, reason | null, version, created_at, updated_at }
+AssignmentWriteOut { assignment: AssignmentOut, warnings: [{code, message}] }
+FunctionalRolesOut { as_of, roles: [EffectiveRoleOut], records: [RoleRecordOut] }
+EffectiveRoleOut   { functional_role: RefOut, effective,
+                     derived_from: [{assignment, assignment_type, org_unit, designation, mapping}],
+                     manual: RoleRecordOut | null, exclusion: RoleRecordOut | null }
+RoleRecordOut      { public_id, functional_role: RefOut, kind: manual | exclusion,
+                     effective_from, effective_to, reason, created_at }
+ResponsibilityRecordOut { public_id, responsibility: RefOut, context_unit: RefOut | null,
+                     context_location: RefOut | null, effective_from, effective_to, reason, created_at }
+ReportingTypeOut   { public_id, code, name, allows_multiple, is_hierarchical, is_active, translations }
+ReportingRecordOut { public_id, relationship_type: RefOut, employee: EmployeeRef, manager: EmployeeRef,
+                     effective_from, effective_to, reason, created_at }
+ReportingOut       { as_of, managers: [ReportingRecordOut], history: [...], direct_reports: [...] }
+EmployeeAccountOut { accounts: [AccountRef] (including disabled), flags: [string],
+                     history: [AuditEventOut] (link and unlink events, newest first;
+                     no source_ip / user_agent) }
+DataQualityOut     { as_of, counts: {check: int}, check | null, items: [EmployeeSummary], next_cursor }
+SeparationPreviewOut { employee: EmployeeRef, version, separation_date (as requested),
+                     records_end_on (= separation_date + 1 day; the effective_to ended records get),
+                     own_records: [{record_id, kind: assignment | functional_role | responsibility
+                       | reporting_line, code, name, effective_from, effective_to,
+                       starts_after_separation}],
+                     direct_reports: [{record_id, employee: EmployeeRef (the subordinate),
+                       relationship_type: RefOut, effective_from, effective_to,
+                       starts_after_separation}],
+                     requires_end_open_records, requires_end_direct_reports, blocked }
+```
+
+No employee schema has compensation (CTC, salary), bank, government-identifier (Aadhaar, PAN), date-of-birth, gender, home-address, health, family or personal-contact fields; the LMS does not store them.
+
+Audit event types added in C3: `employee.created`, `employee.corrected`, `employee.status_changed`, `employee_assignment.created`, `employee_assignment.changed`, `employee_assignment.ended`, `employee_assignment.corrected`, `employee_functional_role.assigned`, `employee_functional_role.excluded`, `employee_functional_role.ended`, `employee_responsibility.assigned`, `employee_responsibility.ended`, `reporting_relationship.created`, `reporting_relationship.ended`, `employee_account.linked`, `employee_account.unlinked`. Reads are not audited.
+
+## 10. Not exposed over HTTP
+
+Super Admin creation, grant and revocation exist only as CLI commands (`python -m app.cli …`, ADR-047). Kiosk PIN sign-in, badge tokens and certificate verification (Q-08, Q-09; Stage J), organisation- and reporting-line-scoped access (Stage C4), and Excel imports (Stage D) are not implemented.

@@ -9,11 +9,18 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.security.tokens import csrf_token_for
 from app.models.audit import AuditEvent
+from app.models.employees import Employee
 from app.models.identity import AccessRole, UserAccessRole, UserAccount, UserSession
 from app.schemas.access import AccessRoleOut, PermissionOut
 from app.schemas.audit import AuditActorOut, AuditEventOut
 from app.schemas.auth import CurrentUser, SessionResponse
-from app.schemas.users import RoleGrantOut, SessionOut, UserDetail, UserSummary
+from app.schemas.users import (
+    LinkedEmployee,
+    RoleGrantOut,
+    SessionOut,
+    UserDetail,
+    UserSummary,
+)
 from app.services.identity.access_control import active_grants
 from app.services.identity.context import AuthContext
 
@@ -57,8 +64,28 @@ def roles_by_user(db: Session, user_ids: Sequence[int]) -> dict[int, list[str]]:
     return result
 
 
-def user_summaries(db: Session, accounts: Sequence[UserAccount]) -> list[UserSummary]:
+def linked_employees(db: Session, accounts: Sequence[UserAccount]) -> dict[int, LinkedEmployee]:
+    """Employee records linked to ``accounts`` (one query), keyed by employee id."""
+    ids = {account.employee_id for account in accounts if account.employee_id is not None}
+    if not ids:
+        return {}
+    return {
+        employee.id: LinkedEmployee(
+            public_id=employee.public_id,
+            employee_code=employee.employee_code,
+            full_name=employee.full_name,
+        )
+        for employee in db.scalars(select(Employee).where(Employee.id.in_(ids)))
+    }
+
+
+def user_summaries(
+    db: Session, accounts: Sequence[UserAccount], *, include_employee: bool
+) -> list[UserSummary]:
+    """Account rows. The linked employee (code and name) is included only when the
+    caller may view employee records (``include_employee``); otherwise it is null."""
     roles = roles_by_user(db, [account.id for account in accounts])
+    employees = linked_employees(db, accounts) if include_employee else {}
     return [
         UserSummary(
             public_id=account.public_id,
@@ -69,12 +96,13 @@ def user_summaries(db: Session, accounts: Sequence[UserAccount]) -> list[UserSum
             roles=roles.get(account.id, []),
             last_login_at=account.last_login_at,
             created_at=account.created_at,
+            employee=employees.get(account.employee_id) if account.employee_id else None,
         )
         for account in accounts
     ]
 
 
-def user_detail(db: Session, account: UserAccount) -> UserDetail:
+def user_detail(db: Session, account: UserAccount, *, include_employee: bool) -> UserDetail:
     grants = active_grants(db, account.id)
     return UserDetail(
         public_id=account.public_id,
@@ -85,6 +113,9 @@ def user_detail(db: Session, account: UserAccount) -> UserDetail:
         roles=sorted(grant.role.code for grant in grants),
         last_login_at=account.last_login_at,
         created_at=account.created_at,
+        employee=linked_employees(db, [account]).get(account.employee_id)
+        if account.employee_id and include_employee
+        else None,
         password_must_change=account.password_must_change,
         status_changed_at=account.status_changed_at,
         status_reason=account.status_reason,

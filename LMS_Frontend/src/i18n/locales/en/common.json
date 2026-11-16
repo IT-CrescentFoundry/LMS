@@ -21,7 +21,8 @@
     "reports": "Reports & Analytics",
     "administration": "Administration",
     "users": "User accounts",
-    "auditLog": "Audit log"
+    "auditLog": "Audit log",
+    "employees": "Employees"
   },
   "language": {
     "label": "Language"
@@ -105,7 +106,8 @@
       "originNotAllowed": "Sign-in is not allowed from this web address. Please contact IT support.",
       "network": "Cannot reach the LMS. Check your connection, then try again.",
       "generic": "Something went wrong. Please try again.",
-      "reference": "Reference: {{requestId}}"
+      "reference": "Reference: {{requestId}}",
+      "employeeHasActiveAccount": "This account cannot be re-activated: its employee already has another account that is not disabled."
     },
     "password": {
       "show": "Show password",
@@ -184,12 +186,18 @@
         "status": "Status",
         "roles": "Access roles",
         "lastLogin": "Last sign-in",
-        "created": "Created"
+        "created": "Created",
+        "employee": "Linked employee"
       },
       "empty": "No user accounts match these filters.",
       "count_one": "Showing {{count}} account",
       "count_other": "Showing {{count}} accounts",
-      "loadError": "Could not load user accounts."
+      "loadError": "Could not load user accounts.",
+      "linked": "Employee link",
+      "linkedAny": "All accounts",
+      "linkedYes": "Linked to an employee",
+      "linkedNo": "Not linked to an employee",
+      "notLinked": "Not linked"
     },
     "audit": {
       "title": "Audit log",
@@ -413,7 +421,9 @@
         "active_child": "Unit below it: {{code}}",
         "owned_functional_role": "Functional role it owns: {{code}}",
         "scoped_mapping": "Designation-to-role mapping limited to this unit",
-        "other": "Another dependent record"
+        "other": "Another dependent record",
+        "employee_assignment": "An employee assignment in this unit continues after the closure date",
+        "employee_responsibility": "An employee responsibility for this unit continues after the closure date"
       },
       "codes": {
         "version_conflict": "Someone else changed this record after you opened it. Reload the latest data and try again.",
@@ -685,6 +695,539 @@
       "categoryHint": "Optional grouping, for example Safety.",
       "empty": "No responsibilities match.",
       "loadError": "Could not load the responsibilities."
+    }
+  },
+  "emp": {
+    "status": {
+      "active": "Active",
+      "on_leave": "On leave",
+      "separated": "Separated",
+      "unknown": "Not recorded"
+    },
+    "assignmentTypes": {
+      "primary": "Primary",
+      "additional": "Additional",
+      "acting": "Acting",
+      "deputation": "Deputation"
+    },
+    "fields": {
+      "employeeCode": "Employee code",
+      "fullName": "Full name",
+      "displayName": "Display name",
+      "preferredLanguage": "Preferred language",
+      "workEmail": "Work email",
+      "status": "Employment status",
+      "dateOfJoining": "Date of joining",
+      "lastWorkingDay": "Last working day",
+      "externalRef": "External reference",
+      "designation": "Designation",
+      "grade": "Grade",
+      "level": "Level",
+      "location": "Location",
+      "newStatus": "New status",
+      "assignmentType": "Assignment type",
+      "unit": "Organisation unit",
+      "unitFilter": "Find a unit",
+      "designationFilter": "Find a designation",
+      "effectiveFrom": "Effective from",
+      "lastDayInEffect": "Last day in effect",
+      "changeDate": "Effective from (first day of the change)",
+      "correctionReason": "Reason for the correction",
+      "functionalRole": "Functional role",
+      "responsibility": "Responsibility",
+      "responsibilityFilter": "Find a responsibility",
+      "contextUnit": "For organisation unit",
+      "contextLocation": "For location",
+      "manager": "Line manager",
+      "employeeSearch": "Find an employee",
+      "accountSearch": "Find a login account"
+    },
+    "common": {
+      "from": "From {{date}}",
+      "lastDay": "last day {{date}}",
+      "ongoing": "ongoing",
+      "startNotRecorded": "start not recorded",
+      "noPrimaryUnit": "No primary assignment",
+      "asOf": "As of date",
+      "today": "Today",
+      "none": "None",
+      "notRecorded": "Not recorded",
+      "period": "Period",
+      "reason": "Reason",
+      "includeEnded": "Include ended records",
+      "actions": "Actions"
+    },
+    "directory": {
+      "title": "Employees",
+      "subtitle": "Employee records, their organisational assignments and reporting lines.",
+      "filters": "Filter employees",
+      "search": "Search",
+      "searchPlaceholder": "Employee code or name",
+      "allStatuses": "All statuses",
+      "accountFilter": "Login account",
+      "accountAny": "Any",
+      "accountYes": "Has an active account",
+      "accountNo": "No active account",
+      "unit": "Organisation unit",
+      "allUnits": "All units",
+      "includeSubUnits": "Include units below it",
+      "any": "Any",
+      "viewingAsOf": "Organisational context shown as of {{date}}.",
+      "loadError": "Could not load employees.",
+      "caption": "Employees",
+      "columns": {
+        "employee": "Employee",
+        "status": "Status",
+        "organisation": "Primary unit",
+        "designation": "Designation",
+        "location": "Location",
+        "manager": "Line manager",
+        "account": "Login account"
+      },
+      "empty": "No employees match these filters.",
+      "count_one": "Showing {{count}} employee",
+      "count_other": "Showing {{count}} employees"
+    },
+    "profile": {
+      "breadcrumb": "Breadcrumb",
+      "loadError": "Could not load this employee.",
+      "viewingAsOf": "Organisational context shown as of {{date}}.",
+      "sections": "Employee sections",
+      "actions": "Employee actions"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "assignments": "Assignments",
+      "roles": "Functional roles",
+      "responsibilities": "Responsibilities",
+      "reporting": "Reporting",
+      "account": "Login account",
+      "history": "History"
+    },
+    "overview": {
+      "details": "Employee details",
+      "updated": "Last updated",
+      "position": "Position on {{date}}",
+      "primaryUnit": "Primary unit",
+      "lineManager": "Line manager",
+      "positionNote": "The organisation path is the one that applied on this date.",
+      "accounts": "Linked login accounts"
+    },
+    "assignments": {
+      "title": "Assignment timeline",
+      "historyNote": "History is never overwritten: a transfer or promotion ends one assignment and starts the next.",
+      "loadError": "Could not load assignments.",
+      "empty": "No assignments recorded.",
+      "columns": {
+        "type": "Type",
+        "unit": "Organisation unit"
+      }
+    },
+    "roles": {
+      "note": "Functional roles describe the work an employee does. They never grant LMS permissions.",
+      "title": "Functional roles on {{date}}",
+      "caption": "Functional roles",
+      "loadError": "Could not load functional roles.",
+      "inEffect": "In effect",
+      "notInEffect": "Not in effect (excluded)",
+      "empty": "No functional roles on this date.",
+      "recordsTitle": "Manual roles and exclusions",
+      "noRecords": "No manual roles or exclusions.",
+      "derived": "From designation {{designation}} in {{unit}} ({{type}} assignment)",
+      "manual": "Assigned manually",
+      "excluded": "Excluded",
+      "kinds": {
+        "manual": "Manual",
+        "exclusion": "Exclusion"
+      },
+      "columns": {
+        "role": "Functional role",
+        "effect": "Effect",
+        "sources": "Source",
+        "kind": "Kind"
+      }
+    },
+    "responsibilities": {
+      "note": "Responsibilities (such as fire warden) do not grant LMS permissions or practical authorisation.",
+      "title": "Responsibilities",
+      "loadError": "Could not load responsibilities.",
+      "inUnit": "Unit: {{unit}}",
+      "atLocation": "Location: {{location}}",
+      "noContext": "Whole organisation",
+      "empty": "No responsibilities recorded.",
+      "columns": {
+        "responsibility": "Responsibility",
+        "context": "Applies to"
+      }
+    },
+    "reporting": {
+      "note": "Being a manager in a reporting line grants no access rights.",
+      "loadError": "Could not load reporting lines.",
+      "managers": "Reports to (on {{date}})",
+      "noManager": "No line manager on this date.",
+      "directReports": "Direct reports (on {{date}})",
+      "noReports": "No direct reports on this date.",
+      "lineManagerType": "Line manager",
+      "history": "Reporting history",
+      "noHistory": "No reporting lines recorded.",
+      "columns": {
+        "manager": "Manager",
+        "type": "Relationship"
+      }
+    },
+    "account": {
+      "hasAccount": "Has account",
+      "noAccount": "No account",
+      "none": "No login account is linked.",
+      "loadError": "Could not load the linked accounts.",
+      "note": "The employee record and the login account are separate. Accounts are never linked, unlinked or suspended automatically.",
+      "flagsTitle": "Please review",
+      "flags": {
+        "separated_with_active_account": "The employee has separated but a linked account is not disabled.",
+        "email_mismatch": "The work email differs from the email of a linked account."
+      },
+      "linked": "Linked accounts",
+      "disabledNote": "Disabled accounts keep their link as history.",
+      "history": "Link history",
+      "noHistory": "No accounts have been linked or unlinked.",
+      "columns": {
+        "login": "Login ID",
+        "name": "Name",
+        "status": "Account status"
+      },
+      "unlinkedAccounts": "Unlinked login accounts",
+      "searching": "Searching…",
+      "noUnlinked": "No unlinked accounts match this search.",
+      "ownAccount": "Your account: you cannot link your own account."
+    },
+    "history": {
+      "title": "Change history",
+      "loadError": "Could not load the change history.",
+      "empty": "No changes recorded.",
+      "count_one": "Showing {{count}} change",
+      "count_other": "Showing {{count}} changes",
+      "by": "By {{name}} ({{login}})",
+      "bySystem": "By the system",
+      "reason": "Reason: {{reason}}",
+      "details": "Recorded details",
+      "events": {
+        "employeeCreated": "Employee record created",
+        "employeeCorrected": "Employee details corrected",
+        "statusChanged": "Employment status changed",
+        "assignmentCreated": "Assignment added",
+        "assignmentChanged": "Assignment changed from a date",
+        "assignmentEnded": "Assignment ended",
+        "assignmentCorrected": "Assignment corrected",
+        "roleAssigned": "Functional role assigned",
+        "roleExcluded": "Functional role excluded",
+        "roleEnded": "Functional role record ended",
+        "responsibilityAssigned": "Responsibility assigned",
+        "responsibilityEnded": "Responsibility ended",
+        "reportingCreated": "Reporting line set",
+        "reportingEnded": "Reporting line ended",
+        "accountLinked": "Login account linked",
+        "accountUnlinked": "Login account unlinked"
+      }
+    },
+    "errors": {
+      "unknownCode": "The request was refused ({{code}}).",
+      "unknownCodeWithReference": "The request was refused ({{code}}). Reference: {{requestId}}",
+      "blockers": {
+        "open_assignment": "Assignment continues after the last working day: {{code}}",
+        "open_functional_role": "Functional role continues after the last working day: {{code}}",
+        "open_responsibility": "Responsibility continues after the last working day: {{code}}",
+        "open_reporting_line": "Reports to {{code}} after the last working day",
+        "open_direct_report": "Direct report {{code}} still reports to this employee",
+        "starts_after_separation": "Starts after the last working day and must be corrected first: {{code}}",
+        "other": "Another record continues after the last working day: {{code}}"
+      },
+      "codes": {
+        "employee_not_found": "This employee record was not found.",
+        "assignment_not_found": "This assignment was not found.",
+        "role_assignment_not_found": "This functional role record was not found.",
+        "responsibility_record_not_found": "This responsibility record was not found.",
+        "reporting_relationship_not_found": "This reporting line was not found.",
+        "reporting_type_not_found": "This reporting relationship type was not found.",
+        "manager_not_found": "The selected manager was not found.",
+        "user_not_found": "The selected login account was not found.",
+        "org_unit_not_found": "The selected organisation unit was not found.",
+        "designation_not_found": "The selected designation was not found.",
+        "grade_not_found": "The selected grade was not found.",
+        "level_not_found": "The selected level was not found.",
+        "location_not_found": "The selected location was not found.",
+        "functional_role_not_found": "The selected functional role was not found.",
+        "responsibility_not_found": "The selected responsibility was not found.",
+        "not_found": "The requested record was not found.",
+        "employee_code_taken": "Another employee already uses this employee code.",
+        "open_records_on_separation": "Records continue after the last working day. End them first, or confirm that they should end on the separation date.",
+        "primary_overlap": "The employee already has a primary assignment for part of this period.",
+        "assignment_overlap": "The employee is already assigned to this unit for part of this period.",
+        "assignment_already_ended": "This assignment already ends by that date.",
+        "record_already_ended": "This record already ends by that date.",
+        "role_assignment_overlap": "This functional role is already assigned or excluded for part of this period.",
+        "responsibility_overlap": "This responsibility is already held in this context for part of this period.",
+        "manager_overlap": "Another manager relationship covers part of this period. End or correct it first.",
+        "reporting_cycle": "This manager reports, directly or indirectly, to the employee.",
+        "later_change_exists": "A later change already exists. End or correct it first.",
+        "account_already_linked": "This login account is linked to another employee.",
+        "employee_has_active_account": "This employee already has a linked account that is not disabled.",
+        "account_not_linked": "This login account is not linked to the employee.",
+        "version_conflict": "Someone else changed this record in the meantime. Reload it and try again.",
+        "invalid_employee_code": "Employee codes may contain letters, digits, '/', '.', '_' and '-' (at most 30 characters).",
+        "invalid_employment_dates": "The last working day cannot be before the date of joining.",
+        "separation_date_required": "Enter the last working day for a separated employee.",
+        "separation_date_not_allowed": "A last working day can only be recorded for a separated employee.",
+        "outside_employment_period": "The dates fall outside the employee's employment period.",
+        "assignment_start_required": "A start date is required because the employee's date of joining is recorded.",
+        "unit_required": "Choose an organisation unit.",
+        "unit_not_active": "The organisation unit does not exist for the whole period.",
+        "reference_inactive": "A selected designation, grade, level or location is inactive.",
+        "change_date_invalid": "The change date must fall within the assignment's period, after its start.",
+        "invalid_period": "The end must be after the start.",
+        "functional_role_inactive": "This functional role is inactive.",
+        "responsibility_inactive": "This responsibility is inactive.",
+        "location_inactive": "This location is inactive.",
+        "self_reporting": "An employee cannot report to themselves.",
+        "manager_separated": "The selected manager has separated.",
+        "reporting_type_inactive": "This reporting relationship type is inactive.",
+        "invalid_check": "Unknown data-quality check.",
+        "no_change": "Nothing has changed.",
+        "invalid_cursor": "The list position is no longer valid. Reload the list.",
+        "validation_error": "Some of the values are not valid. Check the form and try again.",
+        "forbidden": "You do not have permission to do this.",
+        "self_modification_forbidden": "You cannot perform this action on your own account.",
+        "insufficient_privilege": "This account has privileges you do not hold, so you cannot manage it.",
+        "password_change_required": "You must change your password before continuing."
+      }
+    },
+    "actions": {
+      "createEmployee": "Add employee",
+      "editDetails": "Edit details",
+      "changeStatus": "Change status",
+      "separate": "Separate employee",
+      "saveStatus": "Save status",
+      "addAssignment": "Add assignment",
+      "changeFromDate": "Change from a date",
+      "changeFromDateFor": "Change {{unit}} assignment from a date",
+      "end": "End",
+      "endFor": "End {{name}}",
+      "correct": "Correct",
+      "correctFor": "Correct {{name}} assignment",
+      "saveChange": "Save change",
+      "confirmCorrection": "Confirm correction",
+      "confirmEnd": "Confirm end date",
+      "assignRole": "Assign role manually",
+      "exclude": "Exclude",
+      "excludeFor": "Exclude {{role}}",
+      "excludeRole": "Exclude role",
+      "addResponsibility": "Add responsibility",
+      "setManager": "Set line manager",
+      "changeManager": "Change line manager",
+      "saveManager": "Save line manager",
+      "linkAccount": "Link login account",
+      "unlink": "Unlink",
+      "unlinkFor": "Unlink {{login}}",
+      "confirmUnlink": "Confirm unlink",
+      "search": "Search"
+    },
+    "hints": {
+      "employeeCode": "Letters, digits and / . _ - (up to 30). Stored in capitals; leading zeros are kept.",
+      "employeeCodeStored": "Will be stored as {{code}}.",
+      "workEmail": "Work address only. No personal contact details are recorded.",
+      "externalRef": "Reference in another system (optional).",
+      "statusOnCreate": "Leave as \"Not recorded\" if unknown. Use \"Separate employee\" on the profile for anyone leaving now.",
+      "separatedOnCreate": "Only for someone who had already left before this record was created.",
+      "correctionReason": "Explain what was recorded wrongly. This is kept in the history.",
+      "lastDay": "The last day on which this still applies. Leave empty if it continues.",
+      "effectiveFrom": "The first day on which this applies.",
+      "assignmentType": "Only one primary assignment can apply on any day.",
+      "changeDate": "The current record ends the day before; a new one starts on this day. History is kept.",
+      "replacesManager": "This replaces the current line manager from this date; the previous line ends the day before.",
+      "employeeSearch": "Search by employee code or name, then choose from the list."
+    },
+    "validation": {
+      "employeeCode": "Use letters, digits and / . _ - only (up to 30), starting with a letter or digit.",
+      "workEmail": "Enter a valid email address.",
+      "separationBeforeJoining": "The last working day cannot be before the date of joining.",
+      "lastDayBeforeStart": "The last day cannot be before the first day.",
+      "changeAfterStart": "The change must start after the current record starts.",
+      "correctionReason": "A reason is required for a correction.",
+      "chooseAccount": "Choose a login account.",
+      "server": {
+        "required": "This field is required.",
+        "tooLong": "This value is too long.",
+        "format": "This value is not in the expected format.",
+        "date": "Enter a valid date.",
+        "invalid": "This value is not valid."
+      }
+    },
+    "dialogs": {
+      "createTitle": "Add employee",
+      "createHint": "Creates the employee record only. A login account is separate and can be linked later.",
+      "editTitle": "Edit details: {{name}}",
+      "editHint": "Corrects wrongly recorded details. Status changes and separation have their own actions.",
+      "statusTitle": "Change status: {{name}}",
+      "statusHint": "Choose Active or On leave. To record someone leaving, use \"Separate employee\".",
+      "statusRejoinHint": "Re-joining clears the previous last working day. Earlier records are kept.",
+      "currentStatus": "Current status: {{status}}",
+      "addAssignmentTitle": "Add assignment: {{name}}",
+      "addAssignmentHint": "Primary, additional, acting or deputation assignment from a date.",
+      "changeAssignmentTitle": "Change from a date: {{unit}}",
+      "changeAssignmentHint": "For a transfer, promotion or new location. The current record is kept as history.",
+      "currentAssignment": "Current: {{type}} assignment in {{unit}} from {{from}}",
+      "correctAssignmentTitle": "Correction: {{unit}}",
+      "correctAssignmentHint": "Correction (fixes wrongly recorded data). For a real change, use \"Change from a date\".",
+      "correctAssignmentConfirm": "Correct this assignment record?",
+      "correctAssignmentWarning": "The record is changed as if it had always been this way. The correction and its reason are kept in the history.",
+      "endAssignmentTitle": "End assignment: {{unit}}",
+      "endAssignmentHint": "Enter the last day on which this assignment applies.",
+      "endConfirm": "Last day in effect: {{lastDay}}. It no longer applies from {{end}}.",
+      "historyKept": "The record is kept in the history.",
+      "assignRoleTitle": "Assign a functional role: {{name}}",
+      "assignRoleHint": "For work not covered by the designation. It grants no LMS permissions.",
+      "excludeRoleTitle": "Exclude role: {{role}}",
+      "excludeRoleHint": "The role comes from the designation. An exclusion stops it applying to this employee.",
+      "excludeRoleWhich": "Role to exclude: {{role}} ({{code}})",
+      "endRoleTitle": "End manual role: {{role}}",
+      "endRoleHint": "Enter the last day on which this manual role applies.",
+      "endExclusionTitle": "End exclusion: {{role}}",
+      "endExclusionHint": "After the last day, the role applies again if the designation still gives it.",
+      "addResponsibilityTitle": "Add responsibility: {{name}}",
+      "addResponsibilityHint": "Optionally limit it to one organisation unit or location.",
+      "endResponsibilityTitle": "End responsibility: {{responsibility}}",
+      "endResponsibilityHint": "Enter the last day on which this responsibility applies.",
+      "setManagerTitle": "Set line manager: {{name}}",
+      "changeManagerTitle": "Change line manager: {{name}}",
+      "setManagerHint": "The line manager from a date. Reporting lines grant no access rights.",
+      "currentManager": "Current line manager: {{manager}} (from {{from}})",
+      "endReportingTitle": "End reporting line to {{manager}}",
+      "endReportingHint": "Enter the last day on which the employee reports to this manager.",
+      "linkAccountTitle": "Link a login account: {{name}}",
+      "linkAccountHint": "Only accounts not linked to any employee are listed. The account itself is not changed.",
+      "unlinkAccountTitle": "Unlink {{login}}",
+      "unlinkAccountHint": "The account stays as it is (same status and roles); only the link is removed.",
+      "unlinkConfirm": "Unlink {{login}} from {{name}}?",
+      "unlinkKeepsAccount": "The account is not disabled or deleted. The link and unlink stay in the history."
+    },
+    "messages": {
+      "created": "Employee {{code}} was created.",
+      "corrected": "The details of {{code}} were corrected.",
+      "statusChanged": "The status is now {{status}}.",
+      "separated": "The employee was separated. Last working day: {{date}}.",
+      "assignmentAdded": "Assignment in {{unit}} added.",
+      "assignmentChanged": "The assignment was changed from {{date}}.",
+      "assignmentEnded": "The assignment in {{unit}} ends after {{date}}.",
+      "assignmentCorrected": "The assignment was corrected.",
+      "roleAssigned": "{{role}} was assigned.",
+      "roleExcluded": "{{role}} was excluded.",
+      "recordEnded": "{{name}} ends after {{date}}.",
+      "responsibilityAdded": "{{name}} was added.",
+      "managerSet": "Line manager set to {{manager}} from {{date}}.",
+      "reportingEnded": "The reporting line to {{manager}} ends after {{date}}.",
+      "accountLinked": "Login account {{login}} was linked.",
+      "accountUnlinked": "Login account {{login}} was unlinked."
+    },
+    "warnings": {
+      "unit_type_not_assignable": "This unit type is not normally used for employee assignments. Please check the unit.",
+      "generic": "Please review this change ({{code}})."
+    },
+    "separation": {
+      "title": "Separate employee: {{name}}",
+      "step": {
+        "date": "Step 1 of 3: last working day",
+        "impact": "Step 2 of 3: check what continues after that day",
+        "confirm": "Step 3 of 3: confirm the separation"
+      },
+      "lastWorkingDay": "Last Working Day",
+      "lastWorkingDayHint": "The employee’s final day of work.",
+      "recordsEndOn": "Records end from {{nextDay}}: the first day after the last working day (end dates are exclusive).",
+      "checkImpact": "Check impact",
+      "impactIntro": "Last working day {{lastDay}}. Anything that continues will end from {{endsOn}}.",
+      "nothingContinues": "Nothing continues after this date.",
+      "ownTitle": "This employee’s own records",
+      "reportsTitle": "Direct reports (this employee is their manager)",
+      "blockedTitle": "Cannot be ended automatically",
+      "blockedHelp": "These records start after the last working day. Correct or remove them first, then try again.",
+      "blockersTitle": "Records that continue:",
+      "endOwn_one": "End this {{count}} record from {{date}}",
+      "endOwn_other": "End these {{count}} records from {{date}}",
+      "endReports_one": "End the reporting line of this {{count}} employee from {{date}}. They will have no line manager from that date.",
+      "endReports_other": "End the reporting lines of these {{count}} employees from {{date}}. They will have no line manager from that date.",
+      "reportLine": "{{code}} · {{name}} (reports since {{since}})",
+      "reportsTo": "Reports to {{name}} ({{code}}) — {{period}}",
+      "periodOpen": "from {{from}}, ongoing",
+      "periodEnding": "from {{from}}, last day {{lastDay}}",
+      "kinds": {
+        "assignment": "Assignment",
+        "functional_role": "Functional role",
+        "responsibility": "Responsibility",
+        "reporting_line": "Reporting line"
+      },
+      "refreshed": "Records changed since the check. The impact below has been refreshed: please confirm again.",
+      "confirmText": "Separate {{name}} ({{code}}) with last working day {{lastDay}}?",
+      "confirmOwn_one": "{{count}} own record ends from {{date}}.",
+      "confirmOwn_other": "{{count}} own records end from {{date}}.",
+      "confirmReports_one": "{{count}} direct report’s reporting line ends from {{date}}.",
+      "confirmReports_other": "{{count}} direct reports’ reporting lines end from {{date}}.",
+      "confirmAccount": "Linked login accounts are not changed. Disable them separately if needed.",
+      "confirm": "Confirm separation"
+    },
+    "nav": {
+      "label": "Employee area",
+      "directory": "Directory",
+      "dataQuality": "Data quality"
+    },
+    "dataQuality": {
+      "title": "Data quality",
+      "subtitle": "Employee records that need attention, checked by the server for the chosen date.",
+      "readOnlyNote": "This page only reports. Nothing is changed here: open an employee to correct the record with the normal, audited actions.",
+      "checksTitle": "Checks on {{date}}",
+      "chooseCheck": "Choose a check to see the employees it lists.",
+      "listTitle_one": "{{check}}: {{count}} employee",
+      "listTitle_other": "{{check}}: {{count}} employees",
+      "count_one": "Showing {{count}} employee",
+      "count_other": "Showing {{count}} employees",
+      "noIssues": "No employee fails this check on this date.",
+      "loadError": "Could not load the data-quality report.",
+      "review": "Review",
+      "reviewFor": "Review {{code}}",
+      "columns": {
+        "review": "Where to correct"
+      },
+      "checks": {
+        "unknown_status": {
+          "title": "Status not recorded",
+          "description": "The employment status has not been recorded. It is never treated as active or separated."
+        },
+        "no_primary_assignment": {
+          "title": "No primary assignment",
+          "description": "A current employee (active, on leave or status not recorded) without a primary assignment on this date."
+        },
+        "missing_location": {
+          "title": "Location missing",
+          "description": "The primary assignment has no location, and its organisation unit has none either."
+        },
+        "missing_designation": {
+          "title": "Designation missing",
+          "description": "The primary assignment on this date has no designation."
+        },
+        "separated_with_active_account": {
+          "title": "Separated with an active account",
+          "description": "A separated employee still has a linked login account that is not disabled."
+        },
+        "manager_inactive": {
+          "title": "Line manager not active",
+          "description": "A current employee whose line manager on this date is separated or on leave."
+        },
+        "no_line_manager": {
+          "title": "No line manager",
+          "description": "A current employee without a line manager on this date."
+        },
+        "incomplete_record": {
+          "title": "Incomplete record",
+          "description": "The date of joining has not been recorded."
+        }
+      }
     }
   }
 }
