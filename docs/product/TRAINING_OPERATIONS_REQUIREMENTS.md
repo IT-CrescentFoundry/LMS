@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Stage A.1 requirements. **Nothing in this document is implemented.** |
+| **Status** | Stage A.1 requirements. **Nothing in this document is implemented.** Training calendars, attendance and historical records (import profiles 4–6) belong to Stage E; Stage D delivered only the shared import framework they will use. No training data has been imported. |
 | **Owns** | Financial-year calendars, planned activities, training programmes, events, batches, sessions, venues, platforms, trainers, vendors, nominations, participation, attendance, finalisation, recurrence, notifications, training hours/manhours, feedback, training requests, historical training records. |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Related** | [Product requirements](LMS_PRODUCT_REQUIREMENTS.md) (reports FR-RPT-002, -009, -010, -011, -012) · [System architecture §6](../architecture/LMS_SYSTEM_ARCHITECTURE.md) · [Database design §10](../database/LMS_DATABASE_DESIGN.md) · [Import profiles 4–6](../database/EXCEL_IMPORT_PROFILES.md) |

@@ -1,8 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { resources } from '../i18n'
+import { resources } from '../i18n/catalogues'
 import { LANGUAGE_STORAGE_KEY } from '../i18n/languages'
 import { EMPLOYEE, mockApi, mockSignedIn, renderApp } from '../test/renderApp'
 
@@ -31,7 +31,10 @@ describe('LanguageSelector', () => {
       const strings = resources[code].common
       await user.selectOptions(screen.getByRole('combobox'), code)
 
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(strings.dashboard.title)
+      // Bengali, Hindi and Gujarati are downloaded on first use.
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(strings.dashboard.title),
+      )
       expect(screen.getAllByText(strings.nav.dashboard).length).toBeGreaterThan(0)
       expect(screen.getByRole('combobox', { name: strings.language.label })).toHaveValue(code)
       expect(document.documentElement.lang).toBe(code)
@@ -52,7 +55,9 @@ describe('LanguageSelector', () => {
       const strings = resources[code].common
       await user.selectOptions(screen.getByRole('combobox'), code)
 
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(strings.auth.login.title)
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(strings.auth.login.title),
+      )
       expect(screen.getByLabelText(strings.auth.login.loginId)).toBeInTheDocument()
       expect(screen.getByLabelText(strings.auth.login.password)).toBeInTheDocument()
       expect(

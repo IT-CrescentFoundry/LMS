@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import i18n, { changeLanguage, resources } from '.'
+import i18n, { changeLanguage, loadLanguage } from '.'
+import { resources } from './catalogues'
 import {
   LANGUAGE_STORAGE_KEY,
   matchSupportedLanguage,
@@ -93,6 +94,27 @@ describe('language switching', () => {
     expect(i18n.t('nav.dashboard')).toBe(expected)
     expect(document.documentElement.lang).toBe(code)
     expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe(code)
+  })
+})
+
+describe('on-demand catalogues', () => {
+  it('bundles only English; other languages are loaded once, exactly as published', async () => {
+    expect(i18n.hasResourceBundle('en', 'common')).toBe(true)
+    await Promise.all([loadLanguage('gu'), loadLanguage('gu')])
+    expect(i18n.getResourceBundle('gu', 'common')).toEqual(resources.gu.common)
+  })
+
+  it('keeps the current language when a catalogue cannot be downloaded', async () => {
+    i18n.removeResourceBundle('hi', 'common')
+    const spy = vi.spyOn(i18n, 'addResourceBundle').mockImplementationOnce(() => {
+      throw new Error('offline')
+    })
+    await changeLanguage('hi')
+    expect(spy).toHaveBeenCalledOnce()
+    expect(i18n.resolvedLanguage).toBe('en')
+    expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull()
+    await changeLanguage('hi') // a later attempt loads it normally
+    expect(i18n.t('nav.dashboard')).toBe(resources.hi.common.nav.dashboard)
   })
 })
 

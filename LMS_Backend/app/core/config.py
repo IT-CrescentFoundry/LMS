@@ -141,6 +141,26 @@ class Settings(BaseSettings):
     # A fixed offset avoids a runtime time-zone database dependency.
     business_utc_offset_minutes: int = Field(default=330, ge=-720, le=840)
 
+    # --- Imports (Stage D) -----------------------------------------------------
+    # Uploaded workbooks are kept only while their job is open, in this directory,
+    # which must be outside the source tree (default: per-user local app data).
+    import_storage_dir: Path | None = None
+    import_max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=100 * 1024 * 1024)
+    import_max_expanded_bytes: int = Field(default=200 * 1024 * 1024, ge=1024 * 1024)
+    import_max_zip_entries: int = Field(default=2000, ge=10, le=100_000)
+    import_max_compression_ratio: int = Field(default=200, ge=10, le=10_000)
+    import_max_sheets: int = Field(default=20, ge=1, le=200)
+    import_max_rows_per_sheet: int = Field(default=20_000, ge=10, le=1_000_000)
+    # Rows of one import across all mapped sections. Processing is synchronous at
+    # about 25-30 ms per row (Stage D volume test: 5,999 rows in about 3 minutes), and
+    # the browser waits at most 5 minutes; larger workbooks are split.
+    import_max_rows_total: int = Field(default=6_000, ge=10, le=100_000)
+    import_max_columns: int = Field(default=100, ge=5, le=1000)
+    import_job_expiry_days: int = Field(default=7, ge=1, le=90)
+    import_preview_valid_hours: int = Field(default=24, ge=1, le=168)
+    # A job left in 'validating' this long (its request died) returns to mapping.
+    import_validation_timeout_minutes: int = Field(default=30, ge=10, le=1440)
+
     # --- Database: runtime account (dedicated LMS MySQL 8 database) --------
     db_host: str | None = None
     db_port: int = Field(default=3306, ge=1, le=65535)

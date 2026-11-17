@@ -32,6 +32,11 @@ class Permission(StrEnum):
     EMPLOYEES_HISTORY_VIEW = "employees.history.view"
     EMPLOYEES_MANAGE = "employees.manage"
     REPORTING_LINES_MANAGE = "reporting_lines.manage"
+    # Stage D: imports (migration 0010)
+    IMPORTS_VIEW = "imports.view"
+    IMPORTS_EMPLOYEES_RUN = "imports.employees.run"
+    IMPORTS_EMPLOYEES_COMMIT = "imports.employees.commit"
+    IMPORTS_MAPPINGS_MANAGE = "imports.mappings.manage"
     # Capabilities for later stages (no endpoints yet)
     LEARNING_OWN_VIEW = "learning.own.view"
     CERTIFICATES_OWN_VIEW = "certificates.own.view"

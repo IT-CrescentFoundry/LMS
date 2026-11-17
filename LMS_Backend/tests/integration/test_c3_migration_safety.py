@@ -33,7 +33,8 @@ C3_TABLES = (
 @pytest.fixture
 def mdb(test_engine: Engine, test_database_name: str) -> Iterator[MigrationDb]:
     db = MigrationDb(test_engine, test_database_name)
-    assert db.version() == alembic_head() == "0009", "expected a clean schema at 0009"
+    # Later revisions (0010+) are downgraded first by the tests that go below 0009.
+    assert db.version() == alembic_head(), "expected a clean schema at head"
     try:
         yield db
     finally:

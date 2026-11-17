@@ -84,6 +84,20 @@ class AuditEventType(StrEnum):
     REPORTING_ENDED = "reporting_relationship.ended"
     EMPLOYEE_ACCOUNT_LINKED = "employee_account.linked"
     EMPLOYEE_ACCOUNT_UNLINKED = "employee_account.unlinked"
+    # Stage D imports (metadata never contains workbook cell values)
+    IMPORT_UPLOADED = "import.job.uploaded"
+    IMPORT_UPLOAD_REJECTED = "import.upload.rejected"
+    IMPORT_MAPPING_SET = "import.job.mapping_set"
+    IMPORT_VALIDATED = "import.job.validated"
+    IMPORT_ROW_DECIDED = "import.row.decided"
+    IMPORT_COMMITTED = "import.job.committed"
+    IMPORT_COMMIT_FAILED = "import.job.commit_failed"
+    IMPORT_CANCELLED = "import.job.cancelled"
+    IMPORT_EXPIRED = "import.job.expired"
+    IMPORT_VALIDATION_ABANDONED = "import.job.validation_abandoned"
+    IMPORT_VALUE_MAPPING_APPROVED = "import.mapping.approved"
+    IMPORT_VALUE_MAPPING_REJECTED = "import.mapping.rejected"
+    IMPORT_VALUE_MAPPING_SUPERSEDED = "import.mapping.superseded"
 
 
 class TargetType(StrEnum):
@@ -101,6 +115,8 @@ class TargetType(StrEnum):
     DESIGNATION_ROLE_MAPPING = "designation_role_mapping"
     RESPONSIBILITY = "responsibility"
     EMPLOYEE = "employee"
+    IMPORT_JOB = "import_job"
+    IMPORT_VALUE_MAPPING = "import_value_mapping"
 
 
 _FORBIDDEN_KEY_FRAGMENTS = ("password", "token", "secret", "hash", "csrf", "cookie", "credential")

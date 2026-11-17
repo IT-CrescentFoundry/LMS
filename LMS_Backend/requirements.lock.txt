@@ -13,6 +13,8 @@ cffi==2.1.1
 click==8.5.1
 colorama==0.4.6
 cryptography==50.0.2
+defusedxml==0.7.1
+et_xmlfile==2.0.0
 fastapi==0.162.5
 h11==0.16.0
 httpcore2==2.16.0
@@ -25,6 +27,7 @@ Mako==1.4.3
 MarkupSafe==3.0.4
 mypy==2.4.1
 mypy_extensions==1.2.0
+openpyxl==3.1.5
 opentelemetry-api==1.45.2
 packaging==26.3
 pathspec==1.1.1

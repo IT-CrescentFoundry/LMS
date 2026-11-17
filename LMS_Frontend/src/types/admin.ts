@@ -17,7 +17,13 @@ export function isAuditOutcome(value: string): value is AuditOutcome {
   return (AUDIT_OUTCOMES as readonly string[]).includes(value)
 }
 
-export const AUDIT_TARGET_TYPES = ['user_account', 'user_session', 'access_role'] as const
+export const AUDIT_TARGET_TYPES = [
+  'user_account',
+  'user_session',
+  'access_role',
+  'import_job',
+  'import_value_mapping',
+] as const
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number]
 
 export function isAuditTargetType(value: string): value is AuditTargetType {
@@ -53,6 +59,20 @@ export const AUDIT_EVENT_TYPES = [
   ['super_admin.revoked', 'superAdminRevoked'],
   ['authorization.denied', 'authorizationDenied'],
   ['audit.events.viewed', 'auditViewed'],
+  // Stage D - Excel imports
+  ['import.job.uploaded', 'importUploaded'],
+  ['import.upload.rejected', 'importUploadRejected'],
+  ['import.job.mapping_set', 'importMappingSet'],
+  ['import.job.validated', 'importValidated'],
+  ['import.row.decided', 'importRowDecided'],
+  ['import.job.committed', 'importCommitted'],
+  ['import.job.commit_failed', 'importCommitFailed'],
+  ['import.job.cancelled', 'importCancelled'],
+  ['import.job.expired', 'importExpired'],
+  ['import.job.validation_abandoned', 'importValidationAbandoned'],
+  ['import.mapping.approved', 'importMappingApproved'],
+  ['import.mapping.rejected', 'importMappingRejected'],
+  ['import.mapping.superseded', 'importMappingSuperseded'],
 ] as const
 
 export type AuditEventLabel = (typeof AUDIT_EVENT_TYPES)[number][1]

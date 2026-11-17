@@ -18,6 +18,10 @@
  * - After a page reload the token is restored from `GET /auth/session`.
  *
  * Request and response bodies are never logged.
+ *
+ * File transfers (Stage D imports) use the same path, so they get the same CSRF,
+ * timeout and session-recovery behaviour: `rawBody` sends a file as the request
+ * body (never as a form), and `responseType: 'blob'` returns a download.
  */
 
 import { appConfig } from './config'
@@ -66,6 +70,12 @@ export interface ApiRequestOptions<T> {
   parse: (data: unknown) => T
   method?: HttpMethod
   body?: unknown
+  /** Send this file as the raw request body instead of a JSON `body`. */
+  rawBody?: { data: Blob; contentType: string }
+  /** Extra request headers (e.g. `X-File-Name`). Cannot override the CSRF header. */
+  headers?: Readonly<Record<string, string>>
+  /** 'blob' passes the response body to `parse` as a Blob (downloads). Errors are still JSON. */
+  responseType?: 'json' | 'blob'
   signal?: AbortSignal
   timeoutMs?: number
   /** Non-2xx statuses whose JSON body is still a valid result (e.g. readiness 503). */
@@ -186,6 +196,9 @@ async function sendOnce<T>(path: string, options: ApiRequestOptions<T>): Promise
     parse,
     method = 'GET',
     body,
+    rawBody,
+    headers: extraHeaders,
+    responseType = 'json',
     signal,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     acceptStatuses = [],
@@ -203,8 +216,10 @@ async function sendOnce<T>(path: string, options: ApiRequestOptions<T>): Promise
   if (signal?.aborted) controller.abort()
   signal?.addEventListener('abort', forwardAbort, { once: true })
 
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { ...extraHeaders, Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (rawBody !== undefined) headers['Content-Type'] = rawBody.contentType
+  delete headers[CSRF_HEADER]
   if (csrf && UNSAFE_METHODS.has(method) && csrfToken !== null) {
     headers[CSRF_HEADER] = csrfToken
   }
@@ -214,7 +229,7 @@ async function sendOnce<T>(path: string, options: ApiRequestOptions<T>): Promise
     response = await fetch(buildApiUrl(path, baseUrl), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: rawBody !== undefined ? rawBody.data : body === undefined ? undefined : JSON.stringify(body),
       credentials: 'same-origin',
       signal: controller.signal,
     })
@@ -230,7 +245,8 @@ async function sendOnce<T>(path: string, options: ApiRequestOptions<T>): Promise
   }
 
   const requestId = response.headers.get('X-Request-ID') ?? undefined
-  const data = await readJson(response)
+  const wantsBlob = responseType === 'blob' && response.ok
+  const data = wantsBlob ? await response.blob() : await readJson(response)
 
   if (!response.ok && !acceptStatuses.includes(response.status)) {
     const envelope = readErrorEnvelope(data)

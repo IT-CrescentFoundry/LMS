@@ -55,8 +55,13 @@ class MigrationDb:
         self.name = name
 
     def migrate(self, direction: str, target: str) -> None:
-        with self.engine.begin() as connection:
+        # Same as the CLI path in alembic/env.py: end the identity-check transaction so
+        # Alembic commits each revision separately. Inside an external transaction, a
+        # multi-step run that fails part-way would keep the DDL already applied (MySQL
+        # DDL commits implicitly) but roll back alembic_version, leaving them out of step.
+        with self.engine.connect() as connection:
             assert_connected_to(connection, self.name)
+            connection.commit()
             getattr(command, direction)(_alembic_config(connection), target)
 
     def run(self, sql: str, **params: Any) -> None:

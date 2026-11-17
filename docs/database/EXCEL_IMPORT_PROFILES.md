@@ -2,13 +2,54 @@
 
 | | |
 |---|---|
-| **Status** | Design only (Stage A.1). **Nothing is implemented.** Framework and profile 1: Stage D; profiles 4–6: Stage E; profiles 2–3: Stage F ([roadmap](../LMS_IMPLEMENTATION_ROADMAP.md)). |
+| **Status** | **Framework and profile 1 version 1 (employees, assignments, reporting lines) implemented in Stage D** — see §0 and §11.1. The rest of profile 1 (organisation and reference data), profiles 4–6 (Stage E) and profiles 2–3 (Stage F) remain design only ([roadmap](../LMS_IMPLEMENTATION_ROADMAP.md)). |
 | **Owns** | The reusable import framework (pipeline, validation, duplicate candidates, provenance, preview, commit, history, security) and the six import profiles. Supersedes the import section of the Stage A organisation architecture. |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Requirements** | FR-IMP-001…013 in [product requirements §9](../product/LMS_PRODUCT_REQUIREMENTS.md) |
-| **Tables** | [Database design §12](LMS_DATABASE_DESIGN.md) |
+| **Tables** | [Database design §12](LMS_DATABASE_DESIGN.md) (migration 0010) · **API** [API reference §10](../architecture/API_REFERENCE.md) |
 
 > **Important:** the source workbooks referred to in the Stage A.1 brief (Bagnan skill matrices, development plans, annual and safety calendars, attendance records) are **not in the repository workspace**. Layouts below are therefore **expected** layouts, marked **[A]**, and must be verified against the real files — using synthetic copies, never the originals, for development and tests.
+
+---
+
+## 0. Stage D implementation status
+
+Stage D implemented the **framework** and **profile 1 version 1** (`employees` v1: employees, employee assignments and reporting lines). The code is in `LMS_Backend/app/services/imports/`, the tables are created by migration 0010, and the Import Control Room is at `/imports` in the frontend ([API reference §10](../architecture/API_REFERENCE.md)). Sections 1–10 remain the design for the whole framework; where the implementation differs, this section is authoritative.
+
+| Design concept (§2–§10) | Stage D implementation |
+|---|---|
+| Import batch (`import_batch`) | `import_job`: profile code and version, status, file name (display only), SHA-256, size, detected workbook structure (header texts only), confirmed column mapping, summary counts, uploader, validator, committer, timestamps. |
+| States (§3) | `uploaded` → `mapping_required` → `validating` → `validation_failed` \| `ready_for_approval` → `committing` → `completed` \| `completed_with_skips` \| `failed`; `cancelled` and `expired` close an open job. Inspection happens during upload; the design states *inspected / mapped / validated / matched / previewed* are collapsed into `mapping_required`, `validating` and `ready_for_approval`. The transition table is enforced in code (`jobs.TRANSITIONS`). |
+| Mapping profile (saved, versioned) | **Not implemented [F].** Each job carries its own confirmed column mapping. Suggestions come from the profile's built-in header and sheet aliases, matched exactly after label normalisation (case, spacing, punctuation, `&` → `and`); there is no fuzzy header matching. |
+| Value mapping (§2) | `import_value_mapping`: one current decision per kind and normalised label (`pending`, `approved`, `rejected`; withdrawn decisions are kept as `superseded`). Used for reference values (organisation unit, designation, location, grade, job level) only. Suggestions are ranked and shown, never applied. |
+| Import row / import issue | `import_row` (one per sheet row and section: normalised values, mapped source text, outcome, change set, decision) and `import_issue` (code, severity, sheet, row, column, field, source value, parameters). |
+| Duplicate candidate (§6) | No separate table. Exact duplicate keys in a file are errors (`duplicate_in_file`). A **probable duplicate** (different code, same normalised name and joining date, in the file or in the database) is a warning that **requires a decision**: *different person* (`distinct`) or *skip row* (with a reason). It is never merged. |
+| Record provenance (§9) | `record_provenance`: target type and public ID, action (`created`, `updated`, `unchanged`), job and staged row; the row carries the section, sheet and row number, and the job the file name and hash. The rows API returns each staged row's `target_public_id`; there is no dedicated provenance screen yet. |
+| Protected exclusion list (§4.2) | Built into the code (`profiles.EXCLUDED_HEADER_PATTERNS`); **not yet configurable** by administrators [F]. It covers compensation, bank, government identifiers, date of birth, gender, address, health, family and personal contact data. Excluded columns cannot be mapped. Only mapped cells are ever taken from a row: values of excluded columns are never copied into staging rows, issues, job records, audit events, logs or reports (verified end to end by `test_sensitive_values_never_reach_storage_logs_audit_or_reports`). The XML parser still reads each row (and the workbook's shared-strings table) in memory while streaming; nothing from it is kept. A sensitive column under an innocuous header (for example "Ref No" holding identity numbers) cannot be recognised — the template instructions tell users never to include such data. |
+| Header row | Detected automatically in the first 10 rows (the row matching the most field aliases). **Choosing another header row is not supported** [F]: the API accepts only the detected row (`422 import_mapping_header_row`), because a data row chosen as the "header" would bypass the exclusion check on the real headers. |
+| Error export (§9) | An `.xlsx` list of every issue (sheet, row, column, field, severity, code, source value), formula-neutralised. The design's "original layout with Status and Issues columns" is not implemented [F]. |
+| Stale-preview check (§8) | The preview is valid for 24 hours, and becomes stale when any reference-mapping decision is made after validation (`409 import_revalidation_required`). The commit re-runs every row against current data, in one transaction: if a row now breaks a rule, **nothing is written** and the job ends `failed` with the commit-time issues; if a row would now do something other than the approved preview (for example an employee created on the screens since validation turns a *new* row into an *update*), **nothing is written**, the job stays `ready_for_approval` and must be validated again (`409 import_records_changed`). Approved changes are therefore never replaced by changes nobody reviewed. |
+| Commit serialisation (§8) | All import commits are serialised by the `imports` graph lock, and then by the job row. |
+| Permissions (§8) | `imports.view`, `imports.employees.run`, `imports.employees.commit` and `imports.mappings.manage` (migration 0010; HR Admin and Super Admin). The commit also requires the domain permissions it writes with (`employees.manage`, `reporting_lines.manage`). |
+| Second approver (Q-31) | Not implemented (Q-31 open). The approval is one explicit action (`confirm: true`) by a user holding `imports.<profile>.commit` and the domain permissions; approving and committing are the same request. |
+| Retention (Q-21) | Open (full retention rules are deferred). Uploaded files are kept only while a job is open; staging rows, issues and audit records are kept. See *Uploaded-file lifecycle* below. |
+| Expiry | A job expires 7 days after upload (`LMS_IMPORT_JOB_EXPIRY_DAYS`). Every state-changing action (mapping, validation, row decisions, commit) refuses an overdue job (`409 import_job_expired`) even before it has been marked expired; viewing a job or the job list marks it `expired` and releases its file. |
+
+**Uploaded-file lifecycle.** The database is the source of truth. When a job completes, fails, is cancelled or expires, its file is *released* (`file_stored = false`) in the same transaction as the new status, and deleted only after that transaction has committed. So a failed save leaves the job open **with** its workbook, never without it. A deletion that fails afterwards (for example a file locked by a virus scanner) leaves an orphan that housekeeping removes later. Housekeeping runs whenever the job list is opened (no background worker): it expires overdue jobs, returns abandoned validations to `mapping_required` (a job left in `validating` for 30 minutes, `LMS_IMPORT_VALIDATION_TIMEOUT_MINUTES`, because its request died), and deletes released files, files without a job and interrupted `.part` writes. Files without a job are deleted only after a one-hour grace period, because their upload may still be in progress; files with other names are never touched. If the database commit of an upload fails, the file just written is deleted at once. `committing` is never visible to other requests (it is set and replaced inside the one commit transaction), so an interrupted commit simply rolls back. These steps make the behaviour predictable and retryable; they do not make the file system and the database one atomic unit.
+
+Safety controls implemented (§10): `.xlsx` only; OLE/encrypted/legacy files, macros (`vbaProject.bin`), unsafe ZIP entry names, too many entries, excessive expansion or compression ratio, and too many sheets, rows or columns are rejected before parsing; malformed workbook XML anywhere (structure, sheet data, merged ranges) is rejected as `422 file_corrupted`, never a server error; `openpyxl` read-only with cached values only (formulas are never evaluated, and a formula without a cached result is read as empty); hidden rows and merged cells are flagged; workbook XML is parsed with `defusedxml`; external links are not loaded. Files are stored outside the repository (`LMS_IMPORT_STORAGE_DIR`, default `%LOCALAPPDATA%\CrescentLMS\imports`), named by job ID, never by the uploaded name. Limits are settings (`LMS_IMPORT_MAX_*`).
+
+**Processing time and limits (measured).** Processing is synchronous: validation and commit run the same domain services as the employee screens, row by row (about 15 SQL statements per row). In the synthetic volume test (2,000 employees, 2,000 assignments and 1,999 reporting lines = 5,999 rows, on the development PC's MySQL) validation took about 155 s and the commit about 178 s — roughly 25–30 ms per row. The browser waits at most 5 minutes for these requests, so one import is limited to **6,000 rows across all sections** (`LMS_IMPORT_MAX_ROWS_TOTAL`, `422 import_too_many_rows`); larger workbooks are split (for example employees first, then assignments and reporting lines). The per-sheet limit (`LMS_IMPORT_MAX_ROWS_PER_SHEET`, 20,000 rows including blanks) still bounds reading. A worker queue is not needed at this size; the state model allows one later if imports grow.
+
+Business rules implemented (Stage D brief):
+
+* **Employee codes** are text. Leading zeros are kept. A numeric cell is accepted only when its number format fixes the width (for example `00000`); otherwise it is an error (`employee_code_numeric`), because the original code cannot be known.
+* **A missing employment status stays not recorded** (null); it never defaults to Active.
+* **Dates are never guessed**: ISO, day-first (`dd-mm-yyyy`, `dd/mm/yyyy`, `dd.mm.yyyy`) and month names are accepted; two-digit years, bare numbers and date-times are errors.
+* **Organisation units, designations and other reference data are never created** by an import. The five functions (Accounts & Commercial; HR, Admin & IT; Operation; Purchase; Sales & BD) are matched exactly. Unfamiliar labels go to the review queue with their original text preserved. Q-53 (the hierarchy below function level) remains open.
+* **Missing managers are reported** (`manager_not_found`), never ignored.
+* **Status changes and separations are never applied** by an import: they are reported as warnings (`status_change_not_applied`, `separation_not_applied`) and must be made on the employee screen, where the separation checks run.
+* **Assignment history is never rewritten**: an assignment row that conflicts with existing history is an error (`assignment_conflicts_existing`).
 
 ---
 
@@ -160,6 +201,34 @@ Administrator decisions per candidate: **same record** (link: one business recor
 | **Targets** | Unit types, locations, org units, hierarchy links, job families, grades, designations, positions, **functional roles**, **responsibilities**, **designation→role mappings**, employees, employee assignments, employee functional roles, employee responsibilities, reporting relationships. |
 | **Sources** | Standard LMS template or HR exports via mapping profiles. Source system: [A] Q-28. |
 
+### 11.1 Implemented: `employees` version 1 (Stage D)
+
+Commit mode: **all or nothing, with explicit skips** — every row not explicitly skipped is committed in one transaction, or nothing is. Sections are committed in the order employees → assignments → reporting, so a workbook can create an employee and their assignment and manager together. One worksheet may be mapped as several sections (for example a flat HR export holding both employee and assignment columns).
+
+| Section | Sheet aliases | Natural key | Fields (**required**) |
+|---|---|---|---|
+| `employees` | Employees, Employee, Employee Master, Employee List | employee_code | **employee_code**, **full_name**, display_name, preferred_language (en, bn, hi, gu or the language name), work_email, employment_status (Active, On Leave, Separated; blank = not recorded), date_of_joining, last_working_day, external_ref |
+| `assignments` | Assignments, Assignment | employee_code + unit + assignment_type + effective_from | **employee_code**, assignment_type (primary, additional, acting, deputation; blank = primary), **unit**, designation, grade, level, location, **effective_from**, last_day (the last day in effect, inclusive) |
+| `reporting` | Reporting, Reporting Lines, Managers | employee_code + effective_from | **employee_code**, **manager_code**, **effective_from** (line manager only) |
+
+The standard template (`GET /imports/profiles/employees/template`) has these sheets with text-formatted code columns. Header aliases (for example *Emp Code*, *DOJ*, *Department*, *Plant*) are listed by `GET /imports/profiles`.
+
+Validation layers, in order:
+
+1. **File** (§10) and **structure**: header row detected (choosing another row is not supported in v1); required fields mapped; excluded columns refused; at most 6,000 rows per import.
+2. **Field**: the normalisation rules above. Issue codes: `required`, `employee_code_invalid`, `employee_code_numeric`, `date_invalid`, `date_ambiguous`, `date_numeric`, `date_has_time`, `status_invalid`, `language_invalid`, `assignment_type_invalid`, `email_invalid`, `text_expected`, `value_too_long`, `last_day_before_start`, `last_working_day_requires_separated`, `separated_requires_last_working_day`; warnings `row_hidden`, `row_merged_cells`.
+3. **Within the file**: `duplicate_in_file` (same natural key twice); `probable_duplicate` (warning, needs a decision); `depends_on_invalid_row` (for example an assignment whose employee row has errors).
+4. **References**: `reference_unmapped` (the label has no code, exact unique name or approved mapping; a pending mapping is queued); `employee_not_found`; `manager_not_found`.
+5. **Domain rules (dry run)**: every row is run through the same services as the manual screens (`create_employee`, `correct_employee`, `create_assignment`, `set_manager`) inside a transaction that is rolled back, so the codes are those of the [employee API](../architecture/API_REFERENCE.md) (for example `primary_overlap`, `outside_employment_period`, `reporting_cycle`, `unit_not_active`). Profile-specific: `assignment_conflicts_existing`, `reporting_conflicts_existing`; warnings `status_change_not_applied`, `separation_not_applied`.
+
+Change classification: `new`, `update` (existing employee with differing correctable fields: name, display name, language, work email, joining date, external reference — applied only when the approver chooses *apply updates*, otherwise counted as skipped), `unchanged`, `error`, `skipped` (explicit decision; blank and repeated header rows are counted separately and not staged).
+
+### 11.2 Not yet implemented
+
+The remaining worksheets below (unit types, locations, organisation units, job families, designations, positions, functional roles, responsibilities, designation–role mappings, employee roles and responsibilities) are **not part of Stage D**. Organisation and reference data are maintained on the Organisation Builder screens; importing them depends on Q-47 and Q-53. Positions are not implemented at all.
+
+### 11.3 Original design
+
 Standard template worksheets (any subset may be present) **[P]**:
 
 | Worksheet | Natural key | Key columns (illustrative) |
@@ -259,4 +328,4 @@ Expected layout **[A] Q-05**: as profile 4, possibly with mandatory audience, st
 
 ## 17. Open questions
 
-Q-01, Q-03, Q-04, Q-05, Q-06, Q-21, Q-28, Q-31 — see the [register](../product/LMS_PRODUCT_REQUIREMENTS.md).
+Q-01, Q-03, Q-04, Q-05, Q-06, Q-21, Q-28, Q-31, Q-47, Q-53 — see the [register](../product/LMS_PRODUCT_REQUIREMENTS.md).

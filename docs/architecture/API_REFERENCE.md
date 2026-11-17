@@ -1,11 +1,11 @@
-# LMS API Reference (Stages B, C1 and C3)
+# LMS API Reference (Stages B, C1, C3 and D)
 
 | | |
 |---|---|
 | **Status** | Implemented. Every endpoint below exists in `LMS_Backend/app/api/routes/`. This list is checked against the routes registered by `create_app()`. |
 | **Base path** | `/api/v1` (served on the same origin as the SPA; ADR-011) |
 | **Machine-readable** | `GET /api/v1/openapi.json` and Swagger UI at `/api/docs` — development only (disabled in production) |
-| **Related** | [System architecture §7, §11](LMS_SYSTEM_ARCHITECTURE.md) · [Organisation architecture](ORGANISATION_ARCHITECTURE.md) · [Decisions ADR-040…050](../decisions/ARCHITECTURAL_DECISIONS.md) · [Database design §4–5](../database/LMS_DATABASE_DESIGN.md) |
+| **Related** | [System architecture §7, §11](LMS_SYSTEM_ARCHITECTURE.md) · [Organisation architecture](ORGANISATION_ARCHITECTURE.md) · [Decisions ADR-040…053](../decisions/ARCHITECTURAL_DECISIONS.md) · [Database design §4–5](../database/LMS_DATABASE_DESIGN.md) |
 
 ## 1. Conventions
 
@@ -323,6 +323,67 @@ No employee schema has compensation (CTC, salary), bank, government-identifier (
 
 Audit event types added in C3: `employee.created`, `employee.corrected`, `employee.status_changed`, `employee_assignment.created`, `employee_assignment.changed`, `employee_assignment.ended`, `employee_assignment.corrected`, `employee_functional_role.assigned`, `employee_functional_role.excluded`, `employee_functional_role.ended`, `employee_responsibility.assigned`, `employee_responsibility.ended`, `reporting_relationship.created`, `reporting_relationship.ended`, `employee_account.linked`, `employee_account.unlinked`. Reads are not audited.
 
-## 10. Not exposed over HTTP
+## 10. Excel imports — Import Control Room (`/api/v1/imports`) — Stage D
 
-Super Admin creation, grant and revocation exist only as CLI commands (`python -m app.cli …`, ADR-047). Kiosk PIN sign-in, badge tokens and certificate verification (Q-08, Q-09; Stage J), organisation- and reporting-line-scoped access (Stage C4), and Excel imports (Stage D) are not implemented.
+Controlled onboarding of workbook data through **versioned import profiles** ([Excel import profiles](../database/EXCEL_IMPORT_PROFILES.md)). Stage D implements one profile, `employees` v1 (employees, assignments and reporting lines). Nothing is written to business tables until an authorised user explicitly approves a validated preview, and the commit is one transaction.
+
+Permissions (migration 0010; HR Admin and Super Admin only): `imports.view` for every route; `imports.<profile>.run` to upload, map, validate, decide rows and cancel; `imports.<profile>.commit` **plus the domain permissions the commit writes with** (`employees.manage` and `reporting_lines.manage` for `employees`) to commit — an import never allows more than the equivalent manual screens; `imports.mappings.manage` to decide reference mappings. Import jobs are a shared administrative workspace: any holder of these permissions may act on any job, and each action is attributed.
+
+| Method | Path | Permission | Request | Response |
+|---|---|---|---|---|
+| GET | `/imports/profiles` | `imports.view` | – | `200 [ImportProfileOut]` (latest version of each profile, with `can_run` / `can_commit` for the caller) |
+| GET | `/imports/profiles/{code}/template` | `imports.view` | – | `200` `.xlsx` attachment: an Instructions sheet and one sheet per section; code columns are formatted as text |
+| POST | `/imports` | `imports.view` + `imports.<profile>.run` | query `profile`; **raw body** = the `.xlsx` file (`Content-Type` the OOXML spreadsheet type or `application/octet-stream`; not a form); header `X-File-Name` (percent-encoded display name) | `201 ImportJobOut` (`mapping_required`, with a suggested mapping). File checks fail with `413 file_too_large`, `415 file_type_not_allowed` or `422 file_*` / `sheet_*`; a rejected file creates no job (audited as `import.upload.rejected`) |
+| GET | `/imports` | `imports.view` | query `status?`, `profile?`, `limit` 1–100 (default 25), `cursor?` | `200 Page[ImportJobSummary]` (newest first). First runs the storage housekeeping: overdue jobs are marked `expired`, abandoned validations return to `mapping_required`, released and orphan files are deleted |
+| GET | `/imports/mappings` | `imports.view` | query `kind?` (`org_unit` \| `designation` \| `location` \| `grade` \| `job_level`), `status?` (`pending` \| `approved` \| `rejected` \| `superseded`), `limit` 1–100, `cursor?` | `200 Page[ValueMappingOut]` (newest first; pending items carry `suggestions`) |
+| POST | `/imports/mappings/{public_id}/approve` | `imports.view` + `imports.mappings.manage` | `{version, target_public_id, reason?}` | `200 ValueMappingOut` |
+| POST | `/imports/mappings/{public_id}/reject` | `imports.view` + `imports.mappings.manage` | `{version, reason?}` | `200 ValueMappingOut` |
+| POST | `/imports/mappings/{public_id}/withdraw` | `imports.view` + `imports.mappings.manage` | `{version, reason?}` — an approved or rejected decision becomes `superseded` (kept as history) and the label returns to the queue | `200 ValueMappingOut` (the superseded record) |
+| GET | `/imports/{public_id}` | `imports.view` | – | `200 ImportJobOut` (an open job past its expiry is marked `expired` when read; a job left in `validating` for 30 minutes returns to `mapping_required`) |
+| PUT | `/imports/{public_id}/mapping` | `imports.view` + `imports.<profile>.run` | `{version, sections: [{section, sheet, header_row, columns: {"<1-based column>": "<field>"}}]}` — one worksheet may be mapped as several sections; `header_row` must be the row detected at upload (`SheetOut.header_row`), otherwise `422 import_mapping_header_row` | `200 ImportJobOut` (`mapping_confirmed: true`; staged results and row decisions of an earlier validation are discarded) |
+| POST | `/imports/{public_id}/validate` | `imports.view` + `imports.<profile>.run` | `{version}` | `200 ImportJobOut` (`ready_for_approval` or `validation_failed`). **Dry run**: every row runs through the real domain rules inside a transaction that is rolled back. At most 6,000 rows per import (`422 import_too_many_rows`) |
+| POST | `/imports/{public_id}/rows/{row_id}/decision` | `imports.view` + `imports.<profile>.run` | `{version, decision: skip \| distinct \| null, reason?}` — `skip` needs a reason; `distinct` confirms that a probable duplicate is a different person; `null` clears the decision | `200 ImportJobOut` (`validation_failed`: validate again before approval) |
+| POST | `/imports/{public_id}/commit` | `imports.view` + `imports.<profile>.commit` + domain permissions | `{version, confirm: true, apply_updates? (default false)}` — the explicit approval; without `apply_updates`, rows that would correct existing employees are skipped | `200 ImportJobOut` (`completed`, `completed_with_skips` or `failed`) |
+| POST | `/imports/{public_id}/cancel` | `imports.view` + `imports.<profile>.run` | `{version}` | `200 ImportJobOut` (`cancelled`; the stored file is released and deleted after the status is saved) |
+| GET | `/imports/{public_id}/rows` | `imports.view` | query `section?`, `outcome?` (`new` \| `update` \| `unchanged` \| `error` \| `skipped`), `limit` 1–200 (default 50), `cursor?` | `200 Page[RowOut]` (file order) |
+| GET | `/imports/{public_id}/issues` | `imports.view` | query `severity?` (`error` \| `warning`), `code?`, `limit` 1–200, `cursor?` | `200 Page[IssueOut]` |
+| GET | `/imports/{public_id}/error-report` | `imports.view` | – | `200` `.xlsx` attachment listing every issue (text cells only; values starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'`) |
+
+* **Lifecycle**: upload → `mapping_required` (until a mapping is confirmed) → `validating` → `validation_failed` \| `ready_for_approval` → `committing` → `completed` \| `completed_with_skips` \| `failed`. `cancelled` and `expired` (default 7 days after upload) close an open job; every state-changing action refuses an overdue job (`409 import_job_expired`) even before it is marked. Terminal jobs are read-only. Their stored file is released (`file_stored: false`) in the same transaction as the final status and deleted after it commits; a deletion that fails is retried by the housekeeping in `GET /imports`. Staged rows, issues, decisions and the audit trail are kept.
+* **Approval rules**: commit needs status `ready_for_approval`, a validation no older than the preview validity (default 24 hours; `409 import_preview_expired`) and no reference-mapping decision made since validation (`409 import_revalidation_required`). The commit re-checks every row against current data under the `imports` lock, in one transaction: if any row now breaks a rule, nothing is written and the job becomes `failed`; if any row would now do something other than the approved preview (for example an employee created since validation), nothing is written, the job stays `ready_for_approval` and must be validated again (`409 import_records_changed`). Two simultaneous commits of one job create the records once (the second gets `409 import_not_ready` or `version_conflict`).
+* **Idempotency and provenance**: rows are matched on their natural keys (employee code; employee + unit + assignment type + start date; employee + start date for reporting lines). Re-importing the same data reports the rows as `unchanged` and writes nothing. Every record created, updated or confirmed by an import has a `record_provenance` row (job and staged row, hence sheet, row number and file hash); `RowOut.target_public_id` is the record a row created or matched. `previously_imported_by` lists earlier jobs with the same file hash (a warning, not a refusal).
+* **Reference values** (units, designations, locations, grades, levels) are matched by code, exact unique name or an **approved** mapping. Anything else becomes a pending mapping in the review queue with ranked suggestions; suggestions are never applied automatically, and an import never creates units, designations or other reference data.
+* **Excluded data**: columns whose headers name compensation, bank, government-identifier, date-of-birth, gender, address, health, family or personal-contact data are excluded and cannot be mapped (`422 import_mapping_column_excluded`); their values never reach staging, issues, jobs, audit events, logs or reports.
+
+Errors: `404 import_job_not_found` / `import_profile_not_found` / `import_row_not_found` / `import_mapping_not_found`; `409 import_invalid_transition` / `import_profile_unavailable` / `import_mapping_not_confirmed` / `import_not_ready` / `import_job_expired` / `import_preview_expired` / `import_revalidation_required` / `import_records_changed` / `import_mapping_already_decided` / `import_mapping_not_decided` / `import_file_unavailable` / `version_conflict`; `413 file_too_large`; `415 file_type_not_allowed`; `503 import_storage_unavailable` (the upload could not be stored); `422 file_extension_not_allowed` / `file_empty` / `file_encrypted_or_legacy` / `file_not_xlsx` / `file_corrupted` / `file_macro_enabled` / `file_unsafe_entry` / `file_expansion_limit` / `file_too_complex` / `file_too_many_sheets` / `sheet_too_many_rows` / `sheet_too_many_columns` / `import_too_many_rows` (at validation) / `import_mapping_empty` / `import_mapping_unknown_section` / `import_mapping_unknown_sheet` / `import_mapping_duplicate_section` / `import_mapping_header_row` / `import_mapping_unknown_field` / `import_mapping_field_twice` / `import_mapping_unknown_column` / `import_mapping_column_excluded` / `import_mapping_required_missing` / `import_decision_invalid` / `import_skip_reason_required` / `import_mapping_target_not_found` / `import_mapping_target_inactive`. Row-level problems are not HTTP errors: they are `IssueOut` records (codes listed in [Excel import profiles](../database/EXCEL_IMPORT_PROFILES.md)).
+
+```text
+ImportProfileOut { code, version, commit_mode, can_run, can_commit,
+                   sections: [{kind, sheet_aliases, natural_key,
+                               fields: [{name, type, required, aliases, reference | null}]}] }
+ImportJobSummary { public_id, profile_code, profile_version, status, original_filename, file_size,
+                   uploaded_by: AuditActorOut | null, uploaded_at, validated_at, committed_at,
+                   finished_at, counts: {rows, blocking_errors, error_rows, warnings,
+                   undecided_duplicates, importable, skipped_rows, skipped_blank,
+                   skipped_repeated_header, by_section, committed} (keys present once known) }
+ImportJobOut     = ImportJobSummary + { file_sha256, file_stored, version, failure_code | null,
+                   workbook: [SheetOut], column_mapping: [{section, sheet, header_row, columns}],
+                   mapping_confirmed, previously_imported_by: [uuid],
+                   validated_by, committed_by (AuditActorOut | null) }
+SheetOut         { name, state, dimensions | null, suggested_section | null, header_row | null,
+                   headers: [{column, index, text, excluded, suggested_field | null}] }
+RowOut           { id, section, sheet, row_number, outcome, values, source, changes | null,
+                   decision | null, decision_reason | null, target_public_id | null,
+                   issues: [IssueOut] }
+IssueOut         { id, section, sheet, row_number, column, field, code,
+                   severity: error | warning, source_value | null, params | null }
+ValueMappingOut  { public_id, kind, source_text, normalised_text, status, target: RefOut | null,
+                   decision_reason, decided_by, decided_at, created_at, version,
+                   suggestions: [{public_id, code, label, score, reason}] }
+```
+
+Workbook cell values appear only in a job's staged rows and issues (mapped columns only); audit metadata records counts, codes and file hashes, never cell values. Audit event types added in Stage D (target type `import_job` or `import_value_mapping`): `import.job.uploaded`, `import.upload.rejected`, `import.job.mapping_set`, `import.job.validated`, `import.row.decided`, `import.job.committed`, `import.job.commit_failed`, `import.job.cancelled`, `import.job.expired`, `import.job.validation_abandoned`, `import.mapping.approved`, `import.mapping.rejected`, `import.mapping.superseded`. Records written by a commit are also audited with their usual C3 event types (for example `employee.created`) under the same request ID; corrections, assignments and reporting lines carry the import job and source row as their reason.
+
+## 11. Not exposed over HTTP
+
+Super Admin creation, grant and revocation exist only as CLI commands (`python -m app.cli …`, ADR-047). Kiosk PIN sign-in, badge tokens and certificate verification (Q-08, Q-09; Stage J), and organisation- and reporting-line-scoped access (Stage C4) are not implemented. Import profiles 2–6 (skill matrices, development plans, training calendars, safety calendars, attendance and historical training records) belong to later stages; the Stage D framework accepts new profiles without API changes.

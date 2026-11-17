@@ -3,6 +3,7 @@ import {
   BookOpen,
   ChartColumn,
   ClipboardCheck,
+  FileSpreadsheet,
   GraduationCap,
   IdCard,
   LayoutDashboard,
@@ -30,6 +31,7 @@ export type NavLabelKey =
   | 'nav.reports'
   | 'nav.users'
   | 'nav.auditLog'
+  | 'nav.imports'
 
 export interface NavItem {
   id: string
@@ -83,6 +85,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     status: 'available',
     group: 'administration',
     requiredPermission: PERMISSIONS.USER_ACCOUNTS_VIEW,
+  },
+  {
+    id: 'imports',
+    labelKey: 'nav.imports',
+    icon: FileSpreadsheet,
+    to: '/imports',
+    status: 'available',
+    group: 'administration',
+    matchNested: true,
+    requiredPermission: PERMISSIONS.IMPORTS_VIEW,
   },
   {
     id: 'audit-log',

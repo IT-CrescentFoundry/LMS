@@ -7,8 +7,8 @@ The LMS is built in explicitly defined stages. Each stage has a clear scope, dep
 | **A** | Project foundation and technical architecture | **Complete** (database connectivity verified in Stage B) |
 | **A.1** | Architecture alignment with business requirements (documentation only) | **Complete** |
 | **B** | Identity, access and audit (accounts, password sign-in, sessions and idle logout, CSRF, access roles, audit, Super Admin bootstrap, sign-in UI) | **Complete** — kiosk PIN, badges and OTP/SSO deferred (Q-07, Q-08, Q-09) |
-| C | Organisation and employee core (incl. functional roles, responsibilities) + Control Room v1 | Not started |
-| D | Import framework + profile 1 (organisation & employees) | Not started |
+| C | Organisation and employee core (incl. functional roles, responsibilities) + Control Room v1 | **In progress** — C1, C2, C3 committed; C4 (scoped access), positions and Control Room remain |
+| D | Import framework + profile 1 (organisation & employees) | **Implemented, awaiting review** — framework and `employees` v1; organisation/reference-data part of profile 1 deferred |
 | E | Training operations + profiles 4, 5, 6 | Not started |
 | F | Competency framework & development plans + profiles 2, 3 | Not started |
 | G | Learning catalogue & content governance | Not started |
@@ -119,7 +119,7 @@ FR-IAM-002 is met for personal devices only; kiosk timeouts are deferred.
 **Scope:** unit types/rules, units, effective-dated hierarchy, plants/locations, job families, grades, designations, positions, **functional roles**, **responsibilities**, designation/position→role mappings, employees (no compensation data), assignments, employee roles/responsibilities, reporting relationships, as-of queries, history, data-quality view, scope evaluation; Control Room v1 for organisation management.
 **Decisions needed:** Q-23, Q-27, Q-30.
 **Exit criteria:** cycle/overlap/one-primary rules and role resolution covered by tests; scope filtering verified.
-**Status:** C1 (organisation API) and C2 (Organisation Builder screens) committed. C3a (employee API) and C3b (employee screens, CP0–CP7: directory, profile, write workflows, separation with preview, account linking, data quality, translations, browser verification) implemented and verified on the test database — **uncommitted, awaiting review**; migrations `0008`–`0009` not applied to the development database. Remaining: C4 (organisation-scoped permissions and scope evaluation), positions, Control Room. Open: Q-45, Q-47, Q-48, Q-53; native-speaker review of bn/hi/gu (Q-58).
+**Status:** C1 (organisation API) and C2 (Organisation Builder screens) committed. C3a (employee API) and C3b (employee screens, CP0–CP7: directory, profile, write workflows, separation with preview, account linking, data quality, translations, browser verification) committed; migrations `0008`–`0009` applied to the development database. Remaining: C4 (organisation-scoped permissions and scope evaluation), positions, Control Room. Open: Q-45, Q-47, Q-48, Q-53; native-speaker review of bn/hi/gu (Q-58).
 
 ## Stage D — Import framework + profile 1
 
@@ -127,6 +127,11 @@ FR-IAM-002 is met for personal devices only; kiosk timeouts are deferred.
 **Scope:** shared pipeline (staging, mapping profiles, header aliases, value mappings, protected exclusion list, validation layers, duplicate candidates, diff/preview, confirmation with stale check, transactional commit, provenance, history, error export); **profile 1** (organisation & employees).
 **Decisions needed:** Q-28, Q-31, Q-21.
 **Exit criteria:** idempotent re-import; CTC/compensation columns provably never stored; hostile files rejected; synthetic large-file test.
+**Status:** implemented and verified on the test database — **uncommitted, awaiting review**; migration `0010` not applied to the development database. Delivered: the framework (versioned profiles, job state machine, hostile-file checks, header detection, deterministic column mapping, protected exclusion list, normalisation, layered validation as a dry run through the C3 services, probable-duplicate decisions, reviewed reference-value mappings, preview with stale checks, explicit approval, one-transaction commit, provenance, history, formula-safe error report), profile `employees` v1 (employees, assignments, reporting lines), the Import Control Room screens in four languages, and migration `0010` (tables and four permissions). All four exit criteria are covered by tests (re-import → `unchanged`; sensitive columns refused and never stored, logged, audited or reported; hostile-file suite; 2,000-employee synthetic volume test).
+
+**Acceptance review (2026-11-17):** the implementation was re-inspected and hardened before acceptance. Corrected: a commit that no longer matched the approved preview could apply corrections nobody had reviewed (now refused, `import_records_changed`); expiry was enforced only when a job was viewed (now on every action); the header row could be moved onto a data row through the API, bypassing the exclusion check (now fixed to the detected row); malformed worksheet XML caused server errors (now `422 file_corrupted`); uploaded files were deleted before the job's new status was saved (now released in the same transaction and deleted afterwards, with housekeeping for orphans, overdue jobs and abandoned validations); one import could exceed what finishes within the browser's 5-minute wait (now at most 6,000 rows). The bn/hi/gu catalogues are loaded on demand, reducing the main JavaScript bundle from 795 kB to 387 kB; an intermittent frontend test (a 1-second wait too short for on-demand pages under load) was fixed. Details: [import profiles §0](database/EXCEL_IMPORT_PROFILES.md), ADR-051–053.
+
+Implemented but awaiting human review: the bn/hi/gu translations (machine drafts, Q-58). Deferred: saved mapping profiles, an administrator-maintained exclusion list, header-row selection, a second approver (Q-31), full retention rules (Q-21), a provenance screen, and the organisation and reference-data worksheets of profile 1 (Q-47, Q-53). Open: Q-21, Q-28 (source system), Q-31, Q-47, Q-53, Q-58. **Stage E has not started.**
 
 ## Stage E — Training operations + profiles 4, 5, 6
 

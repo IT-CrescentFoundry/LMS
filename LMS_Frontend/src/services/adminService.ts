@@ -53,7 +53,7 @@ export function parseUserSummary(data: unknown): UserSummary {
   }
 }
 
-function parseActor(data: unknown): AuditActor | null {
+export function parseActor(data: unknown): AuditActor | null {
   if (data === null || data === undefined) return null
   const record = expectRecord(data, 'actor')
   return {

@@ -10,7 +10,7 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 002 | React + TypeScript single-page application built with Vite | Accepted |
 | 003 | Tailwind CSS v4 via `@tailwindcss/vite` | Accepted |
 | 004 | TanStack Query for server state; no global client store | Accepted |
-| 005 | i18next with bundled resources for en/bn/hi/gu | Accepted |
+| 005 | i18next for en/bn/hi/gu (English bundled; bn/hi/gu loaded on demand since Stage D) | Accepted (amended Stage D) |
 | 006 | FastAPI with synchronous SQLAlchemy 2 and PyMySQL | Accepted |
 | 007 | MySQL 8, utf8mb4, UTC timestamps | Accepted |
 | 008 | Alembic for all schema changes; no business tables in Stage A | Accepted (Stage B revisions 0001–0003; see 041) |
@@ -56,6 +56,9 @@ New decisions are appended with the next number. A changed decision gets a new r
 | 048 | Audit event model and append-only protection | Accepted (Stage B) |
 | 049 | UUIDv7 public identifiers; internal keys never exposed | Accepted (Stage B) |
 | 050 | Frontend authentication and session restoration | Accepted (Stage B) |
+| 051 | Profile-based import engine; dry run through the domain services; one-transaction commit | Accepted (Stage D) |
+| 052 | Import file security and storage | Accepted (Stage D) |
+| 053 | Reference values: exact matching plus a reviewed mapping queue | Accepted (Stage D) |
 
 ---
 
@@ -92,11 +95,13 @@ New decisions are appended with the next number. A changed decision gets a new r
 **Consequences.** Less hand-written loading/error state; consistent behaviour. Query keys are defined per feature (e.g. `healthQueryKeys`).
 
 ## ADR-005 — i18next with bundled resources
-**Status:** Accepted
+**Status:** Accepted. Amended in the Stage D acceptance review: only English is bundled; the other languages are loaded on demand.
 
-**Decision.** i18next + react-i18next with one `common` namespace per language (`en`, `bn`, `hi`, `gu`) bundled into the build. English is the fallback. The user's choice is stored on the device; otherwise the browser language is used. Translation keys are type-checked; a test enforces key parity and non-empty values across languages. No language-detector dependency: the small amount of detection logic is implemented directly.
+**Decision.** i18next + react-i18next with one `common` namespace per language (`en`, `bn`, `hi`, `gu`). English is the fallback. The user's choice is stored on the device; otherwise the browser language is used. Translation keys are type-checked; a test enforces key parity and non-empty values across languages. No language-detector dependency: the small amount of detection logic is implemented directly.
 
-**Consequences.** Simple and offline-safe. When the catalogue grows, resources will be split into namespaces and lazy-loaded per language. Stage A translations are drafts pending native-speaker review.
+**Amendment (Stage D acceptance review).** By Stage D the four catalogues were about 540 kB of the 795 kB main bundle, and every user downloaded all four. Now only English is in the main bundle; `bn`, `hi` and `gu` are separate files (`src/i18n/index.ts`, `loadLanguage`) downloaded once, before the first render when the initial language needs one (`i18nReady`, awaited by `main.tsx`, so the interface never flashes English) and before switching language. If a catalogue cannot be downloaded the current language is kept (English at start-up). Tests read all catalogues through `src/i18n/catalogues.ts`, which application code must not import. Main bundle: 387 kB (116 kB gzip).
+
+**Consequences.** Smaller first download; changing to a not-yet-used language needs one small request (about 25 kB gzip). Stage A translations are drafts pending native-speaker review (Q-58).
 
 ## ADR-006 — FastAPI with synchronous SQLAlchemy 2 and PyMySQL
 **Status:** Accepted
@@ -521,3 +526,37 @@ The token is returned in the bodies of the sign-in, `GET /auth/session` and pass
 - **Storage.** `localStorage` holds only the language preference. Response parsers whitelist fields, so unexpected fields (for example a hash) never reach the cache or the UI.
 
 **Consequences.** Tokens are not exposed to scripts; multi-tab sign-in and sign-out converge through the focus re-check, the 401 handling and the CSRF retry.
+
+## ADR-051 — Profile-based import engine; dry run through the domain services; one-transaction commit
+**Status:** Accepted (Stage D). Implements [Excel import profiles §0–§3](../database/EXCEL_IMPORT_PROFILES.md).
+
+**Decision.**
+- **Profiles are code.** Each import profile is a versioned specification (`app/services/imports/profiles.py`): sections, fields, header and sheet aliases, natural keys, commit order. A job records the profile code and version it was created with. Stage D ships `employees` v1 only.
+- **State machine.** Jobs move through an explicit transition table (`uploaded → mapping_required → validating → validation_failed | ready_for_approval → committing → completed | completed_with_skips | failed`, plus `cancelled` and `expired`). Any other transition is refused (`409 import_invalid_transition`).
+- **Validation is a real dry run.** Rows are run through the same C3 services as the manual screens (`create_employee`, `correct_employee`, `create_assignment`, `set_manager`), each in a savepoint, inside a transaction that is rolled back. The import therefore never has a second, divergent copy of the business rules.
+- **Commit.** An explicit approval (`confirm: true`) by a user with `imports.<profile>.commit` **and** the domain permissions the commit writes with. The commit takes the `imports` graph lock, then the job row, re-checks status, expiry, preview age (24 h) and mapping freshness, and re-runs every row in one transaction: all rows not explicitly skipped are written, or none. If a row now breaks a rule the job ends `failed` with nothing written; if any row would now do something other than the approved preview (outcome or proposed changes differ), nothing is written and the job must be validated again (`409 import_records_changed`, added in the acceptance review), so an approval never covers changes the approver did not see.
+- **Recovery.** `committing` exists only inside the commit transaction. `validating` is committed so that concurrent requests are refused; a job left there by a dead request returns to `mapping_required` after `LMS_IMPORT_VALIDATION_TIMEOUT_MINUTES` (30). Expiry (7 days) is enforced by every state-changing action, not only when a job is viewed.
+- **Idempotency and provenance.** Rows are matched on natural keys; identical re-imports are `unchanged`. Every written record gets a `record_provenance` row (job, sheet, row, file hash).
+- **Conservative updates.** Existing employees are updated only in listed correctable fields and only when the approver asks (`apply_updates`); status changes, separations and assignment history are never changed by an import.
+
+**Consequences.** Validation of large files is as slow as the domain rules: about 25–30 ms per row (about 15 SQL statements per row in the shared services); the synthetic volume test (5,999 rows) takes about 155 s to validate and 178 s to commit. Processing is synchronous, so one import is limited to 6,000 rows (`LMS_IMPORT_MAX_ROWS_TOTAL`) to finish within the browser's 5-minute request timeout; larger workbooks are split. The state model allows moving validation and commit to a worker later (ADR-039) if that limit becomes a real constraint.
+
+## ADR-052 — Import file security and storage
+**Status:** Accepted (Stage D).
+
+**Decision.**
+- `.xlsx` only. The upload is the raw request body (no multipart parser), read up to the configured size limit.
+- Before parsing: OLE/encrypted/legacy files, macros, unsafe ZIP entry names, too many entries, excessive expansion or compression ratio, and too many sheets, rows or columns are rejected. Rejected uploads create no job and are audited (`import.upload.rejected`).
+- `openpyxl` read-only with cached values only (formulas are never evaluated); workbook XML that is inspected directly (hidden rows, merged cells) is parsed with `defusedxml`. Malformed workbook XML anywhere is a `422 file_corrupted`, never a server error.
+- **Sensitive columns** (compensation, bank, government identifiers, date of birth, gender, address, health, family, personal contact) are recognised from their headers and cannot be mapped; only mapped cells are taken from a row, so their values never reach staging, issues, jobs, audit events, logs or reports (the parser still reads each row in memory while streaming). The header row is the detected one; the API refuses another row, which could otherwise turn a data row into "headers" and bypass this check. Audit metadata holds counts, codes and hashes, never cell values.
+- Files are stored **outside the repository** (`LMS_IMPORT_STORAGE_DIR`; refused if inside the source tree), named by job ID, and kept only while the job is open. A finishing job *releases* its file in the same transaction as its final status; the file is deleted only after that commit. Housekeeping on the job list deletes released files whose deletion failed, files without a job (after a one-hour grace period) and interrupted partial writes, and expires overdue jobs — no background worker.
+- The error report is generated as text cells and neutralises formula injection (`=`, `+`, `-`, `@`, tab, CR).
+
+**Consequences.** The exclusion list is code, not yet an administrator setting (§4.2 of the import design, future). Retention of staging rows remains open (Q-21).
+
+## ADR-053 — Reference values: exact matching plus a reviewed mapping queue
+**Status:** Accepted (Stage D). Q-47 and Q-53 remain open.
+
+**Decision.** Organisation units, designations, locations, grades and levels in a workbook are resolved only by code, by exact unique name, or by an **approved** value mapping (`import_value_mapping`). Anything else becomes a pending mapping with ranked suggestions for a person with `imports.mappings.manage` to approve, reject or later withdraw (kept as `superseded` history). Suggestions are never applied automatically, the original text is kept, and an import never creates reference data. A mapping decision made after a job was validated makes that job stale until it is validated again.
+
+**Consequences.** Spelling variants in HR exports (Q-53) are handled by recorded human decisions instead of fuzzy matching; the canonical designation list itself is still an open question.

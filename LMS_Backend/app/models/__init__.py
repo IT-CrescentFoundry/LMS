@@ -33,6 +33,14 @@ from app.models.identity import (
     UserAccount,
     UserSession,
 )
+from app.models.imports import (
+    ImportIssue,
+    ImportJob,
+    ImportRow,
+    ImportStatus,
+    ImportValueMapping,
+    RecordProvenance,
+)
 from app.models.occupation import (
     Designation,
     DesignationFunctionalRole,
@@ -80,6 +88,11 @@ __all__ = [
     "FunctionalRoleTranslation",
     "Grade",
     "GraphLock",
+    "ImportIssue",
+    "ImportJob",
+    "ImportRow",
+    "ImportStatus",
+    "ImportValueMapping",
     "JobFamily",
     "JobLevel",
     "Location",
@@ -91,6 +104,7 @@ __all__ = [
     "OrgUnitTypeRule",
     "OrgUnitTypeTranslation",
     "ParentRuleMode",
+    "RecordProvenance",
     "ReportingRelationship",
     "ReportingRelationshipType",
     "ReportingRelationshipTypeTranslation",

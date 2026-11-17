@@ -115,6 +115,23 @@ def test_employee_routes_use_only_the_interim_employee_permissions() -> None:
     assert writes > 0
 
 
+def test_import_routes_require_import_permissions() -> None:
+    """Stage D: every import route needs imports.view; mapping decisions also need
+    imports.mappings.manage. Profile-specific run/commit permissions (and the domain
+    permissions a commit writes with) are checked in the handlers - integration tests."""
+    checked = 0
+    for route in _api_routes(list(api_router.routes)):
+        if not route.path.startswith("/imports"):
+            continue
+        checked += 1
+        required = _required_permissions(route)
+        if route.path.startswith("/imports/mappings/") and (route.methods or set()) & {"POST"}:
+            assert required == {"imports.view", "imports.mappings.manage"}, route.path
+        else:
+            assert required == {"imports.view"}, route.path
+    assert checked == 17
+
+
 # --- Trusted origin (CSRF layer 1) ---------------------------------------------------
 
 

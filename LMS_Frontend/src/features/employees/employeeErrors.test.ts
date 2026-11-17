@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resources } from '../../i18n'
+import { resources } from '../../i18n/catalogues'
 import { ApiError } from '../../lib/apiClient'
 import { EMPLOYEE_EVENT_TYPES, DATA_QUALITY_CHECKS, STATUS_FILTERS } from '../../types/employee'
 import { describeEmployeeError, EMPLOYEE_ERROR_CODES, SEPARATION_BLOCKER_TYPES } from './employeeErrors'

@@ -2,7 +2,7 @@
 
 Learning Management System for Crescent Foundry employees, covering induction, foundry process education, role-based learning paths, competency development, theoretical and practical assessment, certification, career development and AI-assisted learning. It is multilingual (English, Bengali, Hindi, Gujarati) and usable on phones, tablets, laptops and desktops.
 
-## Current status: Stage C3 (employee management) implemented, pending review and commit
+## Current status: Stage D (Excel import and controlled data onboarding) implemented and acceptance-reviewed, pending commit
 
 | Area | State |
 |---|---|
@@ -10,15 +10,17 @@ Learning Management System for Crescent Foundry employees, covering induction, f
 | Sign-in, session restoration, sign-out, change password, permission-aware navigation | Implemented (Stage B) |
 | Read-only administration: User accounts and Audit log pages | Implemented (Stage B; C3 adds the employee-link filter and a linked-employee column shown only with `employees.view`) |
 | Organisation structure and reference data API; Organisation Builder screens | Implemented (Stages C1, C2) |
-| Employee master API: employees, effective-dated assignments, functional roles (derived, manual, excluded), responsibilities, reporting lines, account links, separation with preview, history, data quality | Implemented (Stage C3a, C3b CP0); **uncommitted, awaiting review** |
-| Employee screens: directory, profile tabs, create/edit, status, assignments, roles, responsibilities, reporting, separation, account linking, data quality | Implemented (Stage C3b); **uncommitted, awaiting review** — see [frontend README](LMS_Frontend/README.md#employee-area-stage-c3) |
-| Language switching across en / bn / hi / gu | Implemented (Bengali, Hindi and Gujarati strings, including all C2 and C3 screens, are machine drafts awaiting native-speaker review — register Q-58) |
+| Employee master API: employees, effective-dated assignments, functional roles (derived, manual, excluded), responsibilities, reporting lines, account links, separation with preview, history, data quality | Implemented (Stage C3) |
+| Employee screens: directory, profile tabs, create/edit, status, assignments, roles, responsibilities, reporting, separation, account linking, data quality | Implemented (Stage C3) — see [frontend README](LMS_Frontend/README.md#employee-area-stage-c3) |
+| Excel import framework and profile `employees` v1 (employees, assignments, reporting lines): file security, column mapping, dry-run validation, row decisions, reference-mapping review queue, explicit approval, one-transaction commit, provenance, history, error reports | Implemented and acceptance-reviewed (Stage D); **uncommitted** — see [import profiles §0](docs/database/EXCEL_IMPORT_PROFILES.md) and [API reference §10](docs/architecture/API_REFERENCE.md). Deferred: saved mapping profiles, editable exclusion list, header-row selection, second approver (Q-31), full retention rules (Q-21), organisation/reference-data worksheets (Q-47, Q-53) |
+| Import Control Room screens: overview and history, new import, column mapping, validation results, row decisions, approval, reference mappings | Implemented and acceptance-reviewed (Stage D); **uncommitted** — see [frontend README](LMS_Frontend/README.md#import-control-room-stage-d) |
+| Language switching across en / bn / hi / gu | Implemented (Bengali, Hindi and Gujarati strings, including all C2, C3 and D screens, are machine drafts awaiting native-speaker review — register Q-58) |
 | Backend API: configuration, structured logging, error handling, CORS, liveness and readiness checks | Implemented |
 | Identity and access: user accounts, Argon2id passwords, server-side sessions, CSRF protection, login throttling, access roles and permissions, administration API | Implemented (Stage B) |
 | Append-only audit trail; Super Admin bootstrap through the CLI | Implemented (Stage B) |
-| MySQL with separate runtime, migration and test accounts; Alembic head `0009` (employees) in the repository | Migrations `0008`–`0009` are verified on the test database only; applying them to `crescent_lms_dev` is a separate, explicit decision |
+| MySQL with separate runtime, migration and test accounts; Alembic head `0010` (imports) in the repository | `crescent_lms_dev` is at `0009`. Migration `0010` is verified on the test database only; applying it to `crescent_lms_dev` is a separate, explicit decision |
 | Kiosk PIN sign-in, badge QR, OTP/SSO, organisation-scoped roles (C4) | **Not implemented** — open questions Q-07, Q-08, Q-09; Stage C4 |
-| Imports, learning, assessments, competency, certification, reports, AI | **Not implemented** — see the [roadmap](docs/LMS_IMPLEMENTATION_ROADMAP.md) |
+| Import profiles 2–6 (skill matrices, development plans, training calendars, attendance), learning, assessments, competency, certification, reports, AI | **Not implemented** — see the [roadmap](docs/LMS_IMPLEMENTATION_ROADMAP.md) |
 
 ## Repository structure
 
@@ -29,7 +31,7 @@ LMS/
 ├── docs/
 │   ├── architecture/   system architecture, API reference, organisation architecture
 │   ├── database/       database design and import profiles
-│   ├── decisions/      architectural decision records (ADR-001 … ADR-050)
+│   ├── decisions/      architectural decision records (ADR-001 … ADR-053)
 │   ├── product/        product requirements and open-questions register
 │   └── LMS_IMPLEMENTATION_ROADMAP.md
 ├── scripts/        check.ps1 — runs every quality check

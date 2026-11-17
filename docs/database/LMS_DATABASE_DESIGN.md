@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Stage A: database infrastructure. Stage A.1: entity design extended to all domains. **Stage B: the identity, access and audit tables (§4) exist** — Alembic revisions `0001`–`0003`, applied to the development database `crescent_lms_dev`. Every other table below is a **proposal [P]** to be refined and implemented through Alembic migrations in its roadmap stage. |
+| **Status** | Stage A: database infrastructure. Stage A.1: entity design extended to all domains. **Stage B: the identity, access and audit tables (§4) exist** — Alembic revisions `0001`–`0003`. Stages C1 and C3 added the organisation, reference-data and employee tables (`0004`–`0009`, applied to `crescent_lms_dev`). **Stage D adds the import tables (§12, revision `0010`, applied to `crescent_lms_test` only so far).** Every other table below is a **proposal [P]** to be refined and implemented through Alembic migrations in its roadmap stage. |
 | **Database** | MySQL 8.0 (InnoDB). Development: MySQL 8.0.46 with dedicated schemas `crescent_lms_dev` (development) and `crescent_lms_test` (automated tests only), accessed through separate least-privilege accounts (§2.10). |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Related** | [Organisation architecture](../architecture/ORGANISATION_ARCHITECTURE.md) · [System architecture §6](../architecture/LMS_SYSTEM_ARCHITECTURE.md) (domain model) · [Import profiles](EXCEL_IMPORT_PROFILES.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) |
@@ -18,7 +18,7 @@
 | Engine / session management | `LMS_Backend/app/db/session.py` | PyMySQL engine, pool pre-ping, timeouts, UTC session time zone; request-scoped sessions. |
 | Configuration | `LMS_Backend/app/core/config.py` | `LMS_DB_*` runtime and `LMS_MIGRATION_DB_*` migration credentials; no default database; partial settings rejected. |
 | Alembic environment | `LMS_Backend/alembic/`, `alembic.ini` | Uses the migration account only; verifies `DATABASE()`; production guard (ADR-041). |
-| Revisions | `alembic/versions/` | `0001` identity/access/audit tables · `0002` seed roles and permissions (data) · `0003` audit append-only triggers. Head: `0003`. |
+| Revisions | `alembic/versions/` | `0001` identity/access/audit tables · `0002` seed roles and permissions (data) · `0003` audit append-only triggers · `0004`–`0007` organisation and reference data (C1) · `0008`–`0009` employees and their permissions (C3) · `0010` imports (D). Head: `0010`. |
 | Models | `app/models/identity.py`, `app/models/audit.py` | The eight tables in §4. |
 | Readiness check | `GET /api/v1/health/ready` | `SELECT 1` when configured; `not_configured` otherwise. |
 
@@ -373,7 +373,23 @@ The **Skill Passport** has no table: it is a read model over §6, §7, §8 and �
 | `file_object` | All stored files: `storage_key` UNIQUE, `original_filename`, `content_type`, `size_bytes`, `sha256`, `classification` (learning_content, evidence, import_source, certificate_document, submission, template_asset), `uploaded_by`, `retention_until`, `deleted_at`. |
 | `notification`, `notification_preference` | In-app/email notifications, calendar invitations (`.ics`). |
 
-## 12. Imports and provenance **[P]** (Stage D)
+## 12. Imports and provenance — *Implemented (Stage D, revision `0010`)*
+
+Models: `app/models/imports.py`. Design and deviations from the original proposal: [Excel import profiles §0](EXCEL_IMPORT_PROFILES.md). Workbook cell values are stored only in `import_row` / `import_issue`, for mapped columns only; audit metadata never holds them.
+
+| Table | Purpose / key columns |
+|---|---|
+| `import_job` | One upload and its lifecycle: `public_id`, `profile_code` + `profile_version`, `status` (CHECK: the eleven states), `original_filename` (display only), `file_sha256`, `file_size` (CHECK > 0), `file_stored` (set to false in the same transaction as the job's final status; the file itself is deleted after that commit, and housekeeping removes any left behind), `workbook` JSON (sheet names, states, header texts and exclusion flags — never data cells), `column_mapping` JSON, `summary` JSON (counts, decisions, commit result), `failure_code`, uploader / validator / committer and their timestamps, `finished_at`, `version` (optimistic locking). INDEX (`status`), (`profile_code`, `file_sha256`) for same-file detection. |
+| `import_row` | One staged row per job, section, sheet and row number (UNIQUE): `natural_key`, `values` JSON (normalised, mapped fields only), `source` JSON (the mapped cells as text), `outcome` (CHECK: new, update, unchanged, error, skipped), `changes` JSON (field: from → to), `decision` (CHECK: skip, distinct) with reason, decider and time, `target_public_id`. INDEX (`job_id`, `outcome`). |
+| `import_issue` | `job_id`, `row_id`, section, sheet, row number, column letter, field, `code`, `severity` (CHECK: error, warning), `source_value` (≤ 200 characters), `params` JSON. INDEX (`job_id`, `severity`). |
+| `import_value_mapping` | Reviewed reference mappings (ADR-053): `kind` (CHECK: org_unit, designation, location, grade, job_level), `source_text` (original), `normalised_text`, `status` (CHECK: pending, approved, rejected, superseded), `target_public_id`, decision reason / decider / time, `first_job_id`, `version`. Generated column `current_flag` = 1 unless superseded, with UNIQUE (`kind`, `normalised_text`, `current_flag`): **one current decision per label**, superseded history unlimited. CHECKs: approved ⇒ target set; pending ⇒ no target. |
+| `record_provenance` | `job_id`, `row_id`, `target_type` (employee, employee_assignment, reporting_relationship), `target_public_id`, `action` (CHECK: created, updated, unchanged), `recorded_at`. INDEX (`target_type`, `target_public_id`), (`job_id`). |
+
+Migration `0010` also seeds the permissions `imports.view`, `imports.employees.run`, `imports.employees.commit` and `imports.mappings.manage` (granted to HR Admin and Super Admin only) and the `graph_lock` row `imports` that serialises commits. Its downgrade refuses while any import table holds rows or the permission seed was changed; import history is never deleted by a migration.
+
+### 12.1 Still proposed **[P]**
+
+The original Stage A.1 proposal below remains the direction for later profiles (saved mapping profiles, header aliases for skill matrices, administrator-maintained exclusion patterns, duplicate-candidate records, a general `file_object` store). Where it overlaps the implemented tables, the implemented tables are authoritative.
 
 | Table | Purpose / key columns |
 |---|---|

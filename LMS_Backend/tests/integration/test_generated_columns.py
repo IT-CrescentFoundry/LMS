@@ -31,6 +31,8 @@ EXPECTED = {
     ("user_account", "linked_employee_active"): (
         "if(((employee_id is not null) and (status <> 'disabled')),employee_id,null)"
     ),
+    # Stage D (0010): one current (non-superseded) mapping decision per kind and label.
+    ("import_value_mapping", "current_flag"): "if((status <> 'superseded'),1,null)",
 }
 _INTRODUCER = re.compile(r"_[a-z0-9]+(?=')", re.IGNORECASE)
 _TOKEN = re.compile(r"'[^']*'|<>|!=|<=|>=|=|<|>|,|[a-z_][a-z0-9_]*|\d+", re.IGNORECASE)

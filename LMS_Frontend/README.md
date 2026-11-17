@@ -126,19 +126,36 @@ Response parsers (`src/services/*`) copy only known fields, so an unexpected fie
 | Server state | `employeeQueries.ts`: every key starts with `employees`; a successful change invalidates them all (account links also refresh `admin/users`). Mutations never retry; no optimistic updates. A `409 version_conflict` offers **Reload the latest data**. |
 | Errors | `employeeErrors.ts` lists every C3 code (translated under `emp.errors.codes`); unknown codes are shown by name with the request reference. A `422 validation_error` with `['body', field]` locations marks the field (`emp.validation.server.*`) and keeps the form-level message. |
 
+## Import Control Room (Stage D)
+
+`src/features/imports/` uses only the Stage D API (`/api/v1/imports`, [API reference §10](../docs/architecture/API_REFERENCE.md)); the design is in [Excel import profiles §0](../docs/database/EXCEL_IMPORT_PROFILES.md). Every rule (file checks, normalisation, references, duplicates, domain rules) is evaluated by the server; the browser never opens the workbook.
+
+| Topic | Design |
+|---|---|
+| Pages | `/imports` overview (what needs attention, pending reference mappings, full history with a status filter), `/imports/new` (profile, template download, file), `/imports/:id` (one job), `/imports/mappings` (review queue). All need `imports.view`; **New import** needs `imports.employees.run`. Pages are lazy-loaded. |
+| Upload | `importService.upload` sends the `File` itself as the request body (`Content-Type` OOXML spreadsheet, display name percent-encoded in `X-File-Name`) through `apiRequest` (`rawBody`), so the CSRF token, timeout and session recovery apply. Only the extension and emptiness are checked in the browser. |
+| Job page | Step indicator (upload → map → validate → approve → done). The column mapping (`MappingEditor`) shows every header; excluded (sensitive) columns are labelled and never offered. Suggestions use the server's exact rules (`mapping.ts`, mirrors `normalise_label`). **Validate** is held back while the mapping has unsaved changes. |
+| Results | Counts, then rows (section and outcome filters, cursor paging) with their issues, the normalised value and the value in the file, and the changes an update would make; and a flat issue list (severity filter). The issue list can be downloaded as `.xlsx`. Issue codes are translated under `imp.issues`; domain codes reuse `emp.errors.codes`. |
+| Decisions | **Different person** (probable duplicates) and **Skip this row** (reason required) per row, undoable. Any decision sends the job back to validation. |
+| Approval | Only for `ready_for_approval` and only with the profile's commit permission. A summary by section and outcome, an optional **apply the listed corrections** checkbox (only when there are updates), and a mandatory *I have reviewed* confirmation before **Approve and import** (`confirm: true`). Stale previews and conflicts show the translated server code with **Reload**. |
+| Reference mappings | Pending labels with ranked suggestions; **Approve** needs a chosen target (a suggestion or any active record through the employee-form pickers), **Reject** and **Withdraw** take an optional reason. Nothing is ever applied automatically. |
+| Server state | `importQueries.ts`: every key starts with `imports`; a successful action stores the returned job and invalidates every import view (a commit also refreshes `employees`). Validation, upload and commit allow up to 300 s. No retries, no optimistic updates. |
+| Audit | The thirteen `import.*` audit events (including `import.job.validation_abandoned`) and the `import_job` / `import_value_mapping` target types are labelled on the Audit log page. |
+
 ## Performance note
 
-All four catalogues are bundled eagerly. The main chunk is about 720 kB (≈184 kB gzip) after Stage C3 and Vite's 500 kB warning remains. Per-language lazy loading of catalogues is a proposed, separate task.
+Only the English catalogue is in the main bundle. Bengali, Hindi and Gujarati are separate chunks (about 135–145 kB each, ≈25 kB gzip) that `src/i18n/index.ts` downloads once, when that language is first needed: `main.tsx` waits for `i18nReady` before the first render, so a user whose language is Bengali never sees English first, and `changeLanguage` loads the catalogue before switching (if the download fails, the current language stays). Before this change (Stage D acceptance review) every user downloaded all four catalogues: the main chunk was 795 kB (≈190 kB gzip) with Vite's 500 kB warning; it is now about 387 kB (≈116 kB gzip) with no warning. Feature pages are route-level lazy chunks.
 
 ## Testing
 
 - `src/test/renderApp.tsx` renders the real app with a memory router. `mockApi()` stubs `fetch` with a route table (`'GET /auth/session'`, …) and records every request, including headers and bodies. `mockSignedIn(user)` adds a signed-in session.
-- Fixtures (`EMPLOYEE`, `SUPERVISOR`, `HR_ADMIN`, `SUPER_ADMIN`, `sessionBody`, `orgFixtures.ts` and `employeeFixtures.ts`) are synthetic. The only real organisation names are the five approved baseline functions. Never use real employee data.
-- `src/test/setup.ts` clears web storage, the in-memory CSRF token and the auth handlers after each test.
+- Fixtures (`EMPLOYEE`, `SUPERVISOR`, `HR_ADMIN`, `SUPER_ADMIN`, `sessionBody`, `orgFixtures.ts`, `employeeFixtures.ts` and `importFixtures.ts`) are synthetic. The only real organisation names are the five approved baseline functions. Never use real employee data.
+- `src/test/setup.ts` clears web storage, the in-memory CSRF token and the auth handlers after each test. It also raises Testing Library's `findBy*` wait to 4 s: the first test in a file that opens a lazy-loaded page pays a one-off compile cost that, under a full parallel run, could exceed the 1 s default (this caused the intermittent account-linking test failure).
+- Tests that need every language's strings import them from `src/i18n/catalogues.ts`; application code must not import that module, or all catalogues are bundled again.
 
 ## Adding translations
 
 1. Add the key and English text to `src/i18n/locales/en/common.json` (keys are type-checked against this file).
 2. Add the same key to `bn`, `hi` and `gu`. `src/i18n/i18n.test.ts` fails if any language is missing a key, has an empty value or drops an `{{placeholder}}`.
 3. Translate backend error **codes** (see `src/features/auth/authErrors.ts`); never show the backend's English `message` to users.
-4. Have new strings reviewed by a native speaker before learner-facing release. The Stage B6, C2 and C3 Bengali, Hindi and Gujarati strings are machine drafts still awaiting that review (register Q-58). `src/features/employees/employeeErrors.test.ts` checks that every employee-area string exists and differs from English in each language.
+4. Have new strings reviewed by a native speaker before learner-facing release. The Stage B6, C2, C3 and D Bengali, Hindi and Gujarati strings are machine drafts still awaiting that review (register Q-58). `src/features/employees/employeeErrors.test.ts` checks that every employee-area string exists and differs from English in each language.

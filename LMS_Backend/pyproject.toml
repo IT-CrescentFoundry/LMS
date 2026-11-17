@@ -22,6 +22,10 @@ dependencies = [
     "pymysql[rsa]>=1.2.4,<2.0",
     # Argon2id password hashing.
     "argon2-cffi>=25.1.0,<26.0",
+    # Stage D Excel imports: read .xlsx (read-only, cached values only) and
+    # parse workbook XML without entity expansion.
+    "openpyxl>=3.1.5,<3.2",
+    "defusedxml>=0.7.1,<0.8",
 ]
 
 [project.optional-dependencies]
@@ -91,6 +95,11 @@ files = ["app", "tests", "alembic/env.py"]
 
 [[tool.mypy.overrides]]
 module = ["pymysql.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# openpyxl and defusedxml ship without type hints (Stage D imports).
+module = ["openpyxl.*", "defusedxml.*"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]

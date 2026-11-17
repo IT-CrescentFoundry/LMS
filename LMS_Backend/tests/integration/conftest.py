@@ -10,6 +10,7 @@ commits become savepoint releases.
 """
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -116,7 +117,7 @@ def db(database: TransactionalDatabase) -> Iterator[Session]:
 
 
 @pytest.fixture
-def app_settings(integration_settings: IntegrationDatabaseSettings) -> Settings:
+def app_settings(integration_settings: IntegrationDatabaseSettings, tmp_path: Path) -> Settings:
     password = integration_settings.password
     assert password is not None
     values: dict[str, Any] = dict(BASE_TEST_SETTINGS)
@@ -126,6 +127,7 @@ def app_settings(integration_settings: IntegrationDatabaseSettings) -> Settings:
         db_name=integration_settings.name,
         db_user=integration_settings.user,
         db_password=password.get_secret_value(),
+        import_storage_dir=tmp_path / "imports",  # Stage D: never the real storage folder
     )
     return Settings(_env_file=None, **values)
 

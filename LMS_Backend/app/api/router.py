@@ -9,6 +9,7 @@ from app.api.routes import (
     auth,
     employees,
     health,
+    imports,
     org_reference,
     org_structure,
 )
@@ -22,3 +23,4 @@ api_router.include_router(admin_audit.router)
 api_router.include_router(org_structure.router)
 api_router.include_router(org_reference.router)
 api_router.include_router(employees.router)
+api_router.include_router(imports.router)

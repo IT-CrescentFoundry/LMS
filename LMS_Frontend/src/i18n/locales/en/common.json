@@ -22,7 +22,8 @@
     "administration": "Administration",
     "users": "User accounts",
     "auditLog": "Audit log",
-    "employees": "Employees"
+    "employees": "Employees",
+    "imports": "Imports"
   },
   "language": {
     "label": "Language"
@@ -261,7 +262,20 @@
       "superAdminGranted": "Super Admin granted",
       "superAdminRevoked": "Super Admin revoked",
       "authorizationDenied": "Access denied",
-      "auditViewed": "Audit log viewed"
+      "auditViewed": "Audit log viewed",
+      "importUploaded": "Import file uploaded",
+      "importUploadRejected": "Import file rejected",
+      "importMappingSet": "Import column mapping confirmed",
+      "importValidated": "Import validated (dry run)",
+      "importRowDecided": "Import row decision recorded",
+      "importCommitted": "Import approved and committed",
+      "importCommitFailed": "Import commit failed (nothing written)",
+      "importCancelled": "Import cancelled",
+      "importExpired": "Import expired",
+      "importValidationAbandoned": "Abandoned import validation reset",
+      "importMappingApproved": "Reference mapping approved",
+      "importMappingRejected": "Reference mapping rejected",
+      "importMappingSuperseded": "Reference mapping withdrawn"
     },
     "outcomes": {
       "success": "Success",
@@ -271,7 +285,9 @@
     "targetTypes": {
       "user_account": "User account",
       "user_session": "Session",
-      "access_role": "Access role"
+      "access_role": "Access role",
+      "import_job": "Import job",
+      "import_value_mapping": "Reference mapping"
     }
   },
   "common": {
@@ -1227,6 +1243,421 @@
           "title": "Incomplete record",
           "description": "The date of joining has not been recorded."
         }
+      }
+    }
+  },
+  "imp": {
+    "nav": {
+      "label": "Import sections",
+      "overview": "Overview",
+      "newImport": "New import",
+      "mappings": "Reference mappings"
+    },
+    "status": {
+      "uploaded": "Uploaded",
+      "mapping_required": "Mapping needed",
+      "validating": "Validating",
+      "validation_failed": "Needs corrections",
+      "ready_for_approval": "Ready for approval",
+      "committing": "Importing",
+      "completed": "Completed",
+      "completed_with_skips": "Completed with skipped rows",
+      "failed": "Failed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "outcomes": {
+      "new": "New",
+      "update": "Update",
+      "unchanged": "Unchanged",
+      "error": "Error",
+      "skipped": "Skipped"
+    },
+    "severity": {
+      "error": "Error",
+      "warning": "Warning"
+    },
+    "mappingStatus": {
+      "pending": "Waiting for review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "superseded": "Withdrawn"
+    },
+    "kinds": {
+      "org_unit": "Organisation unit",
+      "designation": "Designation",
+      "location": "Location",
+      "grade": "Grade",
+      "job_level": "Job level"
+    },
+    "sections": {
+      "employees": "Employees",
+      "assignments": "Assignments",
+      "reporting": "Reporting lines"
+    },
+    "decisions": {
+      "skip": "Skipped by decision",
+      "distinct": "Confirmed as a different person"
+    },
+    "fields": {
+      "employee_code": "Employee code",
+      "full_name": "Full name",
+      "display_name": "Display name",
+      "preferred_language": "Preferred language",
+      "work_email": "Work email",
+      "employment_status": "Employment status",
+      "date_of_joining": "Date of joining",
+      "last_working_day": "Last working day",
+      "external_ref": "External reference",
+      "assignment_type": "Assignment type",
+      "unit": "Organisation unit",
+      "designation": "Designation",
+      "grade": "Grade",
+      "level": "Job level",
+      "location": "Location",
+      "effective_from": "Effective from",
+      "last_day": "Last day in effect",
+      "manager_code": "Manager's employee code"
+    },
+    "profiles": {
+      "employees": {
+        "title": "Employees, assignments and reporting lines",
+        "description": "Creates new employee records with their organisation assignments and line managers. Existing records are matched by employee code and changed only where you approve it."
+      },
+      "unknown": "Profile {{code}}"
+    },
+    "steps": {
+      "label": "Import progress",
+      "upload": "Upload",
+      "map": "Map columns",
+      "validate": "Validate",
+      "approve": "Approve",
+      "done": "Done"
+    },
+    "actions": {
+      "newImport": "New import",
+      "upload": "Upload and inspect",
+      "downloadTemplate": "Download template (.xlsx)",
+      "downloadErrorReport": "Download issues (.xlsx)",
+      "cancelImport": "Cancel import",
+      "keepImport": "Keep import",
+      "cancel": "Cancel",
+      "reload": "Reload the latest version",
+      "skipRow": "Skip this row",
+      "markDistinct": "Different person",
+      "undoDecision": "Undo decision"
+    },
+    "overview": {
+      "title": "Import Control Room",
+      "subtitle": "Bring employee data from Excel workbooks into the LMS under control: map, validate, review and approve.",
+      "safetyNote": "Nothing is written to employee records until an authorised person approves a validated preview. Sensitive columns (salary, bank, identity numbers, date of birth, address, health, family and personal contact data) are never read.",
+      "attentionTitle": "Needs attention",
+      "attention": {
+        "mapping_required": "Uploaded files whose columns still need mapping.",
+        "validation_failed": "Validated files with errors or decisions to take.",
+        "ready_for_approval": "Validated files waiting for approval."
+      },
+      "pendingMappings": "Reference mappings",
+      "pendingMappingsHint": "Unfamiliar unit, designation or location labels waiting for review."
+    },
+    "history": {
+      "title": "Import history",
+      "statusFilter": "Status",
+      "allStatuses": "All statuses",
+      "columns": {
+        "file": "File",
+        "status": "Status",
+        "rows": "Rows",
+        "uploaded": "Uploaded",
+        "by": "Uploaded by",
+        "open": "Details"
+      },
+      "profile": "Profile {{code}} v{{version}}",
+      "open": "Open",
+      "openFor": "Open import {{file}}",
+      "empty": "No imports match this filter.",
+      "count_one": "Showing {{count}} import",
+      "count_other": "Showing {{count}} imports",
+      "loadError": "Could not load the import history."
+    },
+    "newImport": {
+      "title": "New import",
+      "subtitle": "Upload one Excel workbook (.xlsx). The server checks the file and suggests a column mapping; nothing is imported at this step.",
+      "loadError": "Could not load the import profiles.",
+      "noProfiles": "You do not have permission to run any import profile.",
+      "profileTitle": "What are you importing?",
+      "version": "(version {{version}})",
+      "sections": "Worksheets: {{sections}}",
+      "templateTitle": "Standard template",
+      "templateHint": "The template has one sheet per section with the expected columns. Employee codes are formatted as text so leading zeros are kept. Exports from other systems can be mapped instead.",
+      "fileTitle": "Workbook",
+      "privacyNote": "Use only the data needed for the LMS. Columns such as salary, bank details, Aadhaar or PAN, date of birth, gender, address or personal phone numbers are excluded automatically and never read.",
+      "fileLabel": "Excel workbook (.xlsx)",
+      "fileHint": "Macro-enabled (.xlsm), legacy (.xls), password-protected and CSV files are not accepted.",
+      "chosen": "Selected: {{name}} ({{size}})",
+      "onlyXlsx": "Choose an .xlsx workbook.",
+      "uploading": "Uploading and checking the file…"
+    },
+    "job": {
+      "back": "← All imports",
+      "loadError": "Could not load this import.",
+      "facts": "Profile {{profile}} v{{version}} · {{size}} · uploaded {{time}} by {{by}}",
+      "hashTitle": "Fingerprint of the uploaded file",
+      "sameFile_one": "A file with the same content was imported before:",
+      "sameFile_other": "A file with the same content was imported {{count}} times before:",
+      "earlierJob": "import {{index}}",
+      "profileUnavailable": "Import profile {{code}} is not available to you, so this import can only be viewed."
+    },
+    "mapping": {
+      "title": "Column mapping",
+      "subtitle": "Check which worksheet holds which section and which column holds which field, then save the mapping.",
+      "confirmed": "The mapping is saved. Changing it discards the current validation results.",
+      "exclusionNote": "Suggestions are exact header matches only. Excluded columns hold sensitive or irrelevant data: they cannot be mapped and their cells are never read.",
+      "noSections": "No worksheet section is mapped yet.",
+      "section": "Section",
+      "sheet": "Worksheet",
+      "hiddenSheet": "{{name}} (hidden sheet)",
+      "headerRow": "Header row: {{row}}",
+      "readOnlyTitle": "{{section}} · worksheet {{sheet}}",
+      "remove": "Remove",
+      "removeFor": "Remove {{section}} from worksheet {{sheet}}",
+      "noHeader": "No header row was found on this worksheet. Use the standard template or add a header row.",
+      "columnsCaption": "Columns of worksheet {{sheet}} mapped as {{section}}",
+      "column": "Column",
+      "header": "Header in the file",
+      "field": "LMS field",
+      "fieldFor": "LMS field for column {{column}} ({{header}})",
+      "requiredField": "{{field}} (required)",
+      "notImported": "Not imported",
+      "excluded": "Excluded – sensitive",
+      "missing": "Required fields not mapped: {{fields}}",
+      "twice": "Mapped more than once: {{fields}}",
+      "add": "Map another section",
+      "save": "Save mapping",
+      "unsavedChanges": "You have unsaved changes to the mapping."
+    },
+    "validate": {
+      "title": "Validate",
+      "description": "Validation is a dry run: every row is checked against the same rules as the employee screens, and nothing is written. You can validate as often as you need.",
+      "run": "Validate",
+      "again": "Validate again",
+      "running": "Validating… this can take a few minutes for large files",
+      "saveFirst": "Save the mapping before validating.",
+      "validatedAt": "Last validated {{time}} by {{by}}.",
+      "failedNote": "Correct the errors in the workbook and upload it again, skip rows you do not want to import, take a decision on possible duplicates, or have unfamiliar labels mapped. Then validate again.",
+      "reviewMappings": "Review reference mappings"
+    },
+    "results": {
+      "title": "Validation results",
+      "counts": {
+        "rows": "Rows read",
+        "importable": "Ready to import",
+        "blocking": "Blocking errors",
+        "undecided": "Possible duplicates to decide",
+        "warnings": "Warnings"
+      },
+      "skippedNote": "Skipped by decision: {{skipped}} · blank rows ignored: {{blank}} · repeated header rows ignored: {{headers}}",
+      "tabsLabel": "Result views",
+      "tabs": {
+        "rows": "Rows",
+        "issues": "Issues"
+      },
+      "sectionFilter": "Section",
+      "allSections": "All sections",
+      "outcomeFilter": "Outcome",
+      "allOutcomes": "All outcomes",
+      "severityFilter": "Severity",
+      "allSeverities": "Errors and warnings",
+      "rowRef": "{{sheet}} row {{row}}",
+      "columnRef": "column {{column}}",
+      "fileLevel": "Whole file",
+      "fromFile": "in the file: {{value}}",
+      "changesTitle": "Changes to the existing record",
+      "change": "{{field}}: {{from}} → {{to}}",
+      "noRows": "No rows match these filters.",
+      "noIssues": "No issues found.",
+      "rowCount_one": "Showing {{count}} row",
+      "rowCount_other": "Showing {{count}} rows",
+      "issueCount_one": "Showing {{count}} issue",
+      "issueCount_other": "Showing {{count}} issues",
+      "rowsLoadError": "Could not load the rows.",
+      "issuesLoadError": "Could not load the issues."
+    },
+    "decisionDialog": {
+      "skip": {
+        "title": "Skip this row",
+        "description": "{{sheet}} row {{row}} will not be imported. It stays in the import history with your reason.",
+        "confirm": "Skip row"
+      },
+      "distinct": {
+        "title": "Confirm a different person",
+        "description": "{{sheet}} row {{row}} looks like an existing employee or another row (same name and joining date). Confirm only if you have checked that it is a different person.",
+        "confirm": "Confirm different person"
+      },
+      "reason": "Reason (optional)",
+      "reasonRequired": "Reason",
+      "reasonMissing": "Enter the reason for skipping this row.",
+      "revalidateNote": "After a decision the file must be validated again before it can be approved."
+    },
+    "approve": {
+      "title": "Approve and import",
+      "description": "Check the preview below. When you approve, every row is checked again against the current data and written in one transaction: either everything is imported or nothing is.",
+      "summaryCaption": "Rows to import by section and outcome",
+      "section": "Section",
+      "applyUpdates_one": "Also apply the listed corrections to {{count}} existing record",
+      "applyUpdates_other": "Also apply the listed corrections to {{count}} existing records",
+      "applyUpdatesHint": "Without this, rows that would change existing employees are skipped. Employment status and separations are never changed by an import.",
+      "reviewed": "I have reviewed the preview and the issues, and I approve this import.",
+      "commit": "Approve and import",
+      "committing": "Importing… do not close this page",
+      "recheckNote": "If the data changed since validation or the preview is too old, you will be asked to validate again.",
+      "noPermission": "You can review this import, but approving it needs the import approval permission."
+    },
+    "result": {
+      "completed": "Import completed",
+      "completed_with_skips": "Import completed with skipped rows",
+      "committedAt": "Approved and imported {{time}} by {{by}}.",
+      "created": "Records created",
+      "updated": "Records updated",
+      "unchanged": "Already up to date",
+      "skipped": "Rows skipped",
+      "failed": "Import failed – nothing was written",
+      "failedBody": "A row no longer passed the checks when the import was approved, so the whole import was rolled back. The rows with problems are listed below. Correct the data and start a new import.",
+      "expired": "Import expired",
+      "expiredBody": "This import was not completed in time. The uploaded file has been deleted; start a new import if it is still needed.",
+      "cancelled": "Import cancelled",
+      "cancelledBody": "This import was cancelled. Nothing was written, and the uploaded file has been deleted."
+    },
+    "cancelDialog": {
+      "title": "Cancel this import?",
+      "description": "Nothing has been imported. The uploaded file is deleted; the history of this import is kept."
+    },
+    "mappings": {
+      "title": "Reference mappings",
+      "subtitle": "Labels from workbooks that did not match an organisation unit, designation, location, grade or level exactly.",
+      "neverAutomatic": "Nothing is mapped automatically and no unit or designation is ever created by an import. Approve a label only when it means the same as the chosen record; the original text is kept.",
+      "kindFilter": "Type",
+      "allKinds": "All types",
+      "statusFilter": "Status",
+      "allStatuses": "All statuses",
+      "sourceText": "“{{text}}”",
+      "mappedTo": "Mapped to {{name}} ({{code}})",
+      "decided": "Decided {{time}} by {{by}}",
+      "suggestions": "Possible matches (not applied):",
+      "approve": "Approve a mapping",
+      "reject": "Reject",
+      "withdraw": "Withdraw decision",
+      "empty": "No reference mappings match these filters.",
+      "count_one": "Showing {{count}} mapping",
+      "count_other": "Showing {{count}} mappings",
+      "loadError": "Could not load the reference mappings."
+    },
+    "mappingDialog": {
+      "approve": {
+        "title": "Approve a mapping",
+        "description": "Choose the record that “{{text}}” means. Future imports will use this mapping.",
+        "target": "Maps to",
+        "other": "Another record",
+        "targetMissing": "Choose the record this label maps to.",
+        "confirm": "Approve mapping"
+      },
+      "reject": {
+        "title": "Reject this label",
+        "description": "Rows using “{{text}}” will keep an error until the label is corrected in the workbook or the decision is withdrawn.",
+        "confirm": "Reject"
+      },
+      "withdraw": {
+        "title": "Withdraw this decision",
+        "description": "The decision for “{{text}}” is kept in the history, and the label goes back to the review queue.",
+        "confirm": "Withdraw"
+      },
+      "reason": "Reason (optional)",
+      "revalidateNote": "Imports validated before this decision must be validated again before approval."
+    },
+    "issues": {
+      "required": "A value is required.",
+      "employee_code_invalid": "The employee code is not valid (letters, digits, /, ., _ and -, at most 30 characters).",
+      "employee_code_numeric": "The employee code is stored as a number, so leading zeros may have been lost. Format the column as text and enter the code exactly.",
+      "date_invalid": "This is not a valid date.",
+      "date_ambiguous": "The year has two digits, so the date is ambiguous. Use a four-digit year.",
+      "date_numeric": "The date is a plain number. Enter it as a date (for example 01-04-2025).",
+      "date_has_time": "The date includes a time of day. Enter the date only.",
+      "status_invalid": "Unknown employment status. Use Active, On Leave or Separated, or leave it blank.",
+      "language_invalid": "Unknown language. Use English, Bengali, Hindi or Gujarati.",
+      "assignment_type_invalid": "Unknown assignment type. Use Primary, Additional, Acting or Deputation.",
+      "email_invalid": "This is not a valid email address.",
+      "text_expected": "Text is expected here.",
+      "value_too_long": "The value is too long (at most {{max}} characters).",
+      "last_day_before_start": "The last day is before the start date.",
+      "last_working_day_requires_separated": "A last working day is given, but the status is not Separated.",
+      "separated_requires_last_working_day": "The status is Separated, but no last working day is given.",
+      "row_hidden": "This row is hidden in the workbook. Check that it should be imported.",
+      "row_merged_cells": "This row contains merged cells. Check that the values are in the right columns.",
+      "duplicate_in_file": "The same record appears more than once in the file ({{rows}}).",
+      "probable_duplicate": "Possible duplicate: same name and joining date as employee code(s) {{codes}}. Confirm a different person or skip the row.",
+      "depends_on_invalid_row": "This row depends on another row that has errors.",
+      "reference_unmapped": "This label does not match a record exactly. It has been added to the reference mapping queue.",
+      "employee_not_found": "No employee with this code exists in the LMS or in the file.",
+      "manager_not_found": "The manager's employee code does not exist in the LMS or in the file.",
+      "assignment_conflicts_existing": "This assignment conflicts with the employee's existing assignment history. Imports never rewrite history; correct it on the employee's profile.",
+      "reporting_conflicts_existing": "This reporting line conflicts with the employee's existing reporting history.",
+      "status_change_not_applied": "The employment status in the file differs from the LMS. Imports never change status; change it on the employee's profile.",
+      "separation_not_applied": "The file gives a separation date. Imports never separate employees; use the separation workflow on the employee's profile.",
+      "unit_type_not_assignable": "Employees are not normally assigned to units of this type.",
+      "unknown": "Problem: {{code}}"
+    },
+    "errors": {
+      "codes": {
+        "import_job_not_found": "This import does not exist.",
+        "import_profile_not_found": "This import profile does not exist.",
+        "import_row_not_found": "This row is not part of the import.",
+        "import_mapping_not_found": "This reference mapping does not exist.",
+        "import_invalid_transition": "This action is not possible in the import's current state. Reload to see the latest state.",
+        "import_profile_unavailable": "This import profile version is no longer available.",
+        "import_mapping_not_confirmed": "Save the column mapping first.",
+        "import_not_ready": "This import is not ready for approval (it may already have been approved or changed).",
+        "import_preview_expired": "The preview is too old. Validate again before approving.",
+        "import_revalidation_required": "Reference mappings changed after validation. Validate again before approving.",
+        "import_mapping_already_decided": "Someone else has already decided this mapping.",
+        "import_mapping_not_decided": "This mapping has no decision to withdraw.",
+        "import_file_unavailable": "The uploaded file is no longer available. Start a new import.",
+        "import_job_expired": "This import has expired. Upload the workbook again to start a new import.",
+        "import_records_changed": "Employee records changed after validation, so the preview no longer matches. Validate again before approving.",
+        "import_too_many_rows": "This workbook has more rows than can be processed in one import. Split it into smaller workbooks (for example, employees first, then assignments and reporting lines).",
+        "import_storage_unavailable": "The uploaded file could not be stored. Try again later or contact the system administrator.",
+        "version_conflict": "Someone else changed this import. Reload and try again.",
+        "file_too_large": "The file is larger than the upload limit.",
+        "file_type_not_allowed": "Upload the workbook as an .xlsx file.",
+        "file_extension_not_allowed": "Only .xlsx workbooks can be imported.",
+        "file_empty": "The file is empty.",
+        "file_encrypted_or_legacy": "The file is password-protected or in the old .xls format. Save it as an unprotected .xlsx workbook.",
+        "file_not_xlsx": "The file is not an Excel workbook.",
+        "file_corrupted": "The file is damaged and cannot be read.",
+        "file_macro_enabled": "The workbook contains macros, which are not accepted. Save it as a normal .xlsx workbook.",
+        "file_unsafe_entry": "The file contains unsafe content and was rejected.",
+        "file_expansion_limit": "The file expands to too much data and was rejected.",
+        "file_too_complex": "The file has too many internal parts and was rejected.",
+        "file_too_many_sheets": "The workbook has too many worksheets.",
+        "sheet_too_many_rows": "A worksheet has more rows than the import limit. Split the file.",
+        "sheet_too_many_columns": "A worksheet has more columns than the import limit.",
+        "import_mapping_empty": "Map at least one worksheet section.",
+        "import_mapping_unknown_section": "A mapped section is not part of this profile.",
+        "import_mapping_unknown_sheet": "A mapped worksheet does not exist in the file.",
+        "import_mapping_duplicate_section": "The same section is mapped twice on one worksheet.",
+        "import_mapping_header_row": "The header row could not be read.",
+        "import_mapping_unknown_field": "A column is mapped to a field that this section does not have.",
+        "import_mapping_field_twice": "A field is mapped to more than one column.",
+        "import_mapping_unknown_column": "A mapped column does not exist on the worksheet.",
+        "import_mapping_column_excluded": "Excluded (sensitive) columns cannot be mapped.",
+        "import_mapping_required_missing": "Required fields are not mapped.",
+        "import_decision_invalid": "This decision is not possible for this row.",
+        "import_skip_reason_required": "Enter a reason for skipping the row.",
+        "import_mapping_target_not_found": "The chosen record does not exist.",
+        "import_mapping_target_inactive": "The chosen record is not active.",
+        "validation_error": "Some values are not valid.",
+        "invalid_cursor": "The list position is no longer valid. Reload the list.",
+        "forbidden": "You do not have permission to do this.",
+        "password_change_required": "Change your password before continuing."
       }
     }
   }

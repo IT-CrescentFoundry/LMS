@@ -248,6 +248,59 @@ export const routes: RouteObject[] = [
                   },
                 ],
               },
+              {
+                // Import Control Room (Stage D): every page needs imports.view;
+                // starting an import needs a profile's run permission. Mapping,
+                // validation, approval and mapping decisions are offered only with
+                // their permissions, and the API enforces all of them.
+                path: 'imports',
+                element: (
+                  <RequirePermission permission={PERMISSIONS.IMPORTS_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                ),
+                children: [
+                  {
+                    lazy: async () => ({
+                      Component: (await import('../../features/imports/ImportsLayout')).ImportsLayout,
+                    }),
+                    children: [
+                      {
+                        index: true,
+                        lazy: async () => ({
+                          Component: (await import('../../features/imports/ImportsOverviewPage'))
+                            .ImportsOverviewPage,
+                        }),
+                      },
+                      {
+                        path: 'new',
+                        lazy: async () => {
+                          const { NewImportPage } = await import('../../features/imports/NewImportPage')
+                          return {
+                            element: (
+                              <RequirePermission permission={PERMISSIONS.IMPORTS_EMPLOYEES_RUN}>
+                                <NewImportPage />
+                              </RequirePermission>
+                            ),
+                          }
+                        },
+                      },
+                      {
+                        path: 'mappings',
+                        lazy: async () => ({
+                          Component: (await import('../../features/imports/MappingsPage')).MappingsPage,
+                        }),
+                      },
+                      {
+                        path: ':jobId',
+                        lazy: async () => ({
+                          Component: (await import('../../features/imports/ImportJobPage')).ImportJobPage,
+                        }),
+                      },
+                    ],
+                  },
+                ],
+              },
               { path: '*', element: <NotFoundPage /> },
             ],
           },

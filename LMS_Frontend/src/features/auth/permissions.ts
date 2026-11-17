@@ -28,6 +28,11 @@ export const PERMISSIONS = {
   EMPLOYEES_HISTORY_VIEW: 'employees.history.view',
   EMPLOYEES_MANAGE: 'employees.manage',
   REPORTING_LINES_MANAGE: 'reporting_lines.manage',
+  // Stage D - Excel imports (migration 0010; HR Admin and Super Admin)
+  IMPORTS_VIEW: 'imports.view',
+  IMPORTS_EMPLOYEES_RUN: 'imports.employees.run',
+  IMPORTS_EMPLOYEES_COMMIT: 'imports.employees.commit',
+  IMPORTS_MAPPINGS_MANAGE: 'imports.mappings.manage',
   LEARNING_OWN_VIEW: 'learning.own.view',
   CERTIFICATES_OWN_VIEW: 'certificates.own.view',
   TRAINING_REQUESTS_SUBMIT: 'training_requests.submit',

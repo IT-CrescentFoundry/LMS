@@ -59,12 +59,21 @@ STAGE_C3_TABLES = {
     "reporting_relationship_type_translation",
     "reporting_relationship",
 }
+STAGE_D_TABLES = {
+    "import_job",
+    "import_row",
+    "import_issue",
+    "import_value_mapping",
+    "record_provenance",
+}
 
 
 def test_models_define_only_the_tables_of_completed_stages() -> None:
     import app.models  # noqa: F401
 
-    assert set(Base.metadata.tables) == STAGE_B_TABLES | STAGE_C1_TABLES | STAGE_C3_TABLES
+    assert set(Base.metadata.tables) == (
+        STAGE_B_TABLES | STAGE_C1_TABLES | STAGE_C3_TABLES | STAGE_D_TABLES
+    )
     # Competency and proficiency data belong to Stage F, not to C3.
     for fragment in ("competenc", "proficien"):
         assert not any(fragment in name for name in Base.metadata.tables), fragment

@@ -320,6 +320,15 @@ Framework and profile details: [Excel import profiles](../database/EXCEL_IMPORT_
 | FR-IMP-012 | Original values (e.g. development-plan indicators "Y", "US") are preserved verbatim. | [C] |
 | FR-IMP-013 | Real employee records and original workbooks are never added to the Git repository. | [C] |
 
+Implementation status (Stage D, [import profiles §0](../database/EXCEL_IMPORT_PROFILES.md)):
+
+- **FR-IMP-001** — partially implemented: the reusable framework and profile 1 for **employees, assignments and reporting lines** (`employees` v1). The organisation/reference-data part of profile 1 and profiles 2–6 are not implemented (Stages E and F).
+- **FR-IMP-002** — standard template implemented; saved, reusable mapping profiles are not (each job carries its own confirmed mapping; header aliases are built into the profile).
+- **FR-IMP-003, -004, -005, -006, -007, -008** — implemented for `employees` v1: layered row validation, probable-duplicate detection with a required decision, dry-run preview with new / update / unchanged / error / skipped counts, explicit approval by a user with the commit permission, one-transaction commit with idempotent re-imports and no deletion, import history, audit and `record_provenance` (file hash, sheet, row), and a formula-safe `.xlsx` issue report.
+- **FR-IMP-009, -010, -012** — not implemented (wide matrices and training records belong to profiles 2–6).
+- **FR-IMP-011** — implemented and extended: compensation, bank, government-identifier, date-of-birth, gender, address, health, family and personal-contact columns are excluded and cannot be mapped; their values never reach staging rows, issues, job records, audit events, logs or reports, and the header row cannot be moved to bypass the check (ADR-052; verified by tests and the browser E2E run of the Stage D acceptance review).
+- **FR-IMP-013** — implemented: import tests use synthetic workbooks built in memory; uploaded files are stored outside the repository.
+
 ## 10. AI services
 
 Architecture: [system architecture §12](../architecture/LMS_SYSTEM_ARCHITECTURE.md).
@@ -428,12 +437,12 @@ Business source files are **never stored in the Git repository**. Layouts and va
 | Q-50 | **Account policy.** Should the linked LMS account be suspended automatically on separation? Must linked accounts use the employee code as login ID (Q-07, ADR-032)? *Confirmed in the C3a review (2026-11-14):* no automatic suspension, the employee code is not forced as login ID; a separated employee with an account that is not disabled is flagged in the data-quality view. | Identity, employee master | C0 |
 | Q-51 | **Permission and scope matrix.** Confirm who may view and manage employee records, history and reporting lines; are plant-scoped HR Admins needed; should Supervisors see assignment history? *Confirmed in the C3a review (2026-11-14):* the four employee permissions are global and held only by HR Admin and Super Admin; scoped access is Stage C4. | Access control | C0 |
 | Q-52 | **Reporting relationships.** Which relationship types are needed beyond line manager (e.g. functional or dotted-line managers), and who maintains manager assignments? *Confirmed in the C3a review (2026-11-14):* only `LINE_MANAGER` is seeded; HR maintains reporting lines. | Reporting lines, manager dashboards | C0 |
-| Q-53 | **Designations and job families.** What is the canonical designation list and job-family structure? The source data has many spelling variants; normalisation belongs to Stage D imports. | Reference data, imports | C0 |
+| Q-53 | **Designations and job families.** What is the canonical designation list and job-family structure? The source data has many spelling variants; normalisation belongs to Stage D imports. *Stage D:* imports match designations only by code, exact unique title or an approved mapping; spelling variants go to the reviewed mapping queue (ADR-053) and are never merged or created automatically. *Still open:* the canonical list and job-family structure. | Reference data, imports | C0 |
 | Q-54 | **Employee code format.** Confirm the character set and format (prefixes, use of `/`). *Confirmed in the C3a review (2026-11-14):* letters, digits, `/`, `.`, `_` and `-`, at most 30 characters, trimmed and stored in capitals, leading zeros kept, unique ignoring case. | Employee master, imports | C3 |
 | Q-55 | **Non-assignable unit types.** When a unit type is marked as not accepting employee assignments, should an assignment be refused or only warned about? *Confirmed in the C3a review (2026-11-14):* a warning (`unit_type_not_assignable`). | Assignments | C3 |
 | Q-56 | **Employment-status history.** Must employment status be effective-dated (status periods), or are the current status plus the audit trail sufficient? *Confirmed in the C3a review (2026-11-14):* current status and separation date, with every change in the audit trail. | Employee master, reporting | C3 |
 | Q-57 | **Employee history and data quality.** Who may view an employee's change history and the data-quality view? *Confirmed in the C3a review (2026-11-14):* HR Admin and Super Admin (`employees.history.view`, `employees.manage`). | Access control, privacy | C3 |
-| Q-58 | **Native-speaker translation review.** The Bengali, Hindi and Gujarati interface strings (Stages A–C3, including all employee-management screens, error messages and data-quality checks) are machine drafts. Who reviews them, and must review be complete before learner-facing release? *Open:* no native-speaker verification has been done. | i18n, release readiness | C3 |
+| Q-58 | **Native-speaker translation review.** The Bengali, Hindi and Gujarati interface strings (Stages A–D, including all employee-management and Import Control Room screens, error messages, import issue messages and data-quality checks) are machine drafts. Who reviews them, and must review be complete before learner-facing release? *Open:* no native-speaker verification has been done. | i18n, release readiness | C3 |
 
 ## 14. Future enhancements register
 

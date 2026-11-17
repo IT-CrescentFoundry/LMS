@@ -3,7 +3,8 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { changeLanguage, resources } from '../../i18n'
+import { changeLanguage } from '../../i18n'
+import { resources } from '../../i18n/catalogues'
 import {
   EMPLOYEE,
   errorBody,

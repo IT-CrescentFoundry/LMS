@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Stage A implemented the foundation; Stage A.1 aligned the architecture with the extended business requirements; **Stage B implemented identity, authentication, sessions, CSRF protection, access roles and permissions, and the audit trail (backend and frontend)**. Sections are marked **Implemented** or **Planned**; planned items are designs, not working features. |
+| **Status** | Stage A implemented the foundation; Stage A.1 aligned the architecture with the extended business requirements; **Stage B implemented identity, authentication, sessions, CSRF protection, access roles and permissions, and the audit trail (backend and frontend)**; Stages C1–C3 implemented the organisation, reference data and employee master; **Stage D implemented the Excel import framework and profile `employees` v1 (§6.10)**. Sections are marked **Implemented** or **Planned**; planned items are designs, not working features. |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Related** | [Product requirements](../product/LMS_PRODUCT_REQUIREMENTS.md) · [Competency & compliance](../product/COMPETENCY_AND_COMPLIANCE_REQUIREMENTS.md) · [Training operations](../product/TRAINING_OPERATIONS_REQUIREMENTS.md) · [Organisation architecture](ORGANISATION_ARCHITECTURE.md) · [Database design](../database/LMS_DATABASE_DESIGN.md) · [Import profiles](../database/EXCEL_IMPORT_PROFILES.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) · [API reference](API_REFERENCE.md) · [Roadmap](../LMS_IMPLEMENTATION_ROADMAP.md) |
 
@@ -76,7 +76,7 @@ src/
 ├── hooks/          cross-feature hooks (none yet)
 ├── services/       typed API functions per backend area (health, auth, admin, organisation, employee)
 ├── lib/            apiClient (typed fetch, ApiError, in-memory CSRF token), parse, format, config
-├── i18n/           i18next setup, language registry, locales/{en,bn,hi,gu}
+├── i18n/           i18next setup (English bundled; bn/hi/gu loaded on demand), language registry, locales/{en,bn,hi,gu}
 ├── styles/         Tailwind entry + design tokens (@theme)
 ├── types/          shared TypeScript types (API contracts, env)
 └── test/           test setup and render helpers
@@ -132,7 +132,7 @@ Each domain adds sub-packages in `models/`, `schemas/`, `services/` and a module
 | `identity` | **Implemented (Stage B):** user accounts, passwords, login sessions, throttling, **access roles** and permissions. **Planned:** kiosk PIN, badges, kiosks (Q-08, Q-09); organisation-scoped role assignments (C) | B (scoping C) |
 | `audit` | **Implemented (Stage B):** append-only audit trail (ADR-048) | B |
 | `organisation` | Units, types, plants/locations, job families, designations, positions, **functional roles**, **responsibilities**, employees, assignments, reporting | C |
-| `imports` | Import framework and profiles 1–6 | D (framework), E, F |
+| `imports` | **Implemented (Stage D):** framework (profiles, job state machine, file security, mapping, dry-run validation, review queue for reference values, approval, one-transaction commit, provenance) and profile `employees` v1. **Planned:** organisation/reference-data part of profile 1, profiles 2–6 | D (framework), E, F |
 | `training_ops` | FY calendars, planned activities, programmes, events, batches, sessions, venues, trainers, vendors, nominations, attendance, finalisation, hours, training requests, historical records | E |
 | `competency` | Skill-level sets, competency skills, role requirements, mappings, skill assessments, achievements, development plans | F (core), I (achievement rules) |
 | `learning` | Academies, paths, curricula, assets, versions, content governance, visibility, allocations, enrolments, progress, retraining, reinforcement | G (catalogue), H (delivery) |
@@ -269,9 +269,17 @@ Examples:
 
 Reports (FR-RPT-001…013) read from SQL views and derived caches ([database design §13](../database/LMS_DATABASE_DESIGN.md)); every query is scope-filtered by the caller's access-role assignments; exports are audited and formula-injection-safe. Heavy aggregates may be precomputed by the worker.
 
-### 6.10 Import framework
+### 6.10 Import framework — *Implemented (Stage D)*
 
-See [EXCEL_IMPORT_PROFILES.md](../database/EXCEL_IMPORT_PROFILES.md) (ADR-029, ADR-030).
+See [EXCEL_IMPORT_PROFILES.md](../database/EXCEL_IMPORT_PROFILES.md) (ADR-029, ADR-030, ADR-051…053) and [API reference §10](API_REFERENCE.md).
+
+```text
+upload ─► file checks ─► inspect (headers only) ─► map ─► validate = dry run through the
+domain services (rolled back) ─► row decisions / reference-mapping review ─► explicit
+approval ─► commit: imports lock → job row → re-run every row in ONE transaction ─► provenance
+```
+
+`app/services/imports/` holds the engine (`jobs.py` state machine and orchestration, `workbook.py` file security and reading, `normalise.py`, `references.py`, `storage.py`, `reports.py`) and one module per profile (`employees_profile.py`). A profile writes only through the owning domain's services, so imports can never bypass a business rule or gain permissions the approver lacks. Uploaded files live outside the repository and are kept only while the job is open: a closing job releases its file in the same transaction as its final status, and the file is deleted after that commit; housekeeping on the job list removes any left behind, expires overdue jobs and recovers abandoned validations (no background worker). Processing is synchronous (about 25–30 ms per row), so one import is limited to 6,000 rows; the state model allows a worker later (ADR-039).
 
 ## 7. API conventions
 
@@ -287,7 +295,7 @@ See [EXCEL_IMPORT_PROFILES.md](../database/EXCEL_IMPORT_PROFILES.md) (ADR-029, A
 | Pagination | `limit` + opaque `cursor`; `{items, next_cursor}`, newest first. | Implemented (admin lists) |
 | Filtering/sorting | Explicit allow-listed parameters. | Filtering implemented (admin lists); sorting planned |
 | Language | `Accept-Language` for messages and content selection. | Planned |
-| Idempotency | `Idempotency-Key` for import commits, finalisation, issuance. | Planned |
+| Idempotency | Import commits: the job `version` plus its state (a committed job is refused with `409 import_not_ready`) and natural-key matching (re-imports are `unchanged`). `Idempotency-Key` for finalisation and issuance. | Implemented for imports; planned otherwise |
 | Optimistic concurrency | Resource `version` required on update. | Planned for the API; identity tables already carry `version` (ORM optimistic locking) |
 | Public endpoints | Allow-list enforced by a route-inventory test: `/health/*`, `POST /auth/login`, `GET /auth/session`. Planned addition: `/api/v1/public/*` (certificate verification), rate-limited. | Implemented / Planned |
 | Integration endpoints | `/api/v1/integration/*` for service accounts (future PMS). | Planned [F] |
