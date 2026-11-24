@@ -1,7 +1,7 @@
 import { Download, FileUp, LoaderCircle } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 
 import { labelClassName, primaryButtonClassName, secondaryButtonClassName } from '../../components/formStyles'
 import { LoadingState } from '../../components/LoadingState'
@@ -31,7 +31,9 @@ export function NewImportPage() {
     importService.upload(profile, chosen),
   )
   const runnable = (profiles.data ?? []).filter((profile) => profile.can_run)
-  const [profileCode, setProfileCode] = useState('')
+  const [searchParams] = useSearchParams()
+  // `?profile=organisation` (e.g. from the organisation structure page) preselects a profile.
+  const [profileCode, setProfileCode] = useState(searchParams.get('profile') ?? '')
   const profile = runnable.find((item) => item.code === profileCode) ?? runnable[0]
 
   function choose(next: File | null) {
@@ -104,15 +106,17 @@ export function NewImportPage() {
                     />
                     <span className="min-w-0 space-y-1">
                       <span className="block font-semibold break-words text-slate-900">
-                        {t(item.code === 'employees' ? 'imp.profiles.employees.title' : 'imp.profiles.unknown', {
-                          code: item.code,
-                        })}{' '}
+                        {item.code === 'employees' || item.code === 'organisation'
+                          ? t(`imp.profiles.${item.code}.title`)
+                          : t('imp.profiles.unknown', { code: item.code })}{' '}
                         <span className="font-normal text-slate-500">
                           {t('imp.newImport.version', { version: item.version })}
                         </span>
                       </span>
                       <span className="block text-sm break-words text-slate-600">
-                        {item.code === 'employees' ? t('imp.profiles.employees.description') : null}
+                        {item.code === 'employees' || item.code === 'organisation'
+                          ? t(`imp.profiles.${item.code}.description`)
+                          : null}
                       </span>
                       <span className="block text-sm text-slate-600">
                         {t('imp.newImport.sections', {

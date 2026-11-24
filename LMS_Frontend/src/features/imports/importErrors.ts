@@ -95,6 +95,13 @@ export const IMPORT_ISSUE_CODES = [
   'status_change_not_applied',
   'separation_not_applied',
   'unit_type_not_assignable',
+  // Profile `organisation` v1 (migration 0011)
+  'unit_type_unknown',
+  'location_unknown',
+  'parent_not_found',
+  'parent_cycle_in_file',
+  'parent_row_failed',
+  'existing_unit_differs',
 ] as const
 export type ImportIssueCode = (typeof IMPORT_ISSUE_CODES)[number]
 

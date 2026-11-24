@@ -37,6 +37,16 @@ class Permission(StrEnum):
     IMPORTS_EMPLOYEES_RUN = "imports.employees.run"
     IMPORTS_EMPLOYEES_COMMIT = "imports.employees.commit"
     IMPORTS_MAPPINGS_MANAGE = "imports.mappings.manage"
+    # First release: training register, skill matrix (migration 0011)
+    TRAINING_RECORDS_VIEW = "training.records.view"
+    COMPETENCY_VIEW = "competency.view"
+    COMPETENCY_MANAGE = "competency.manage"
+    COMPETENCY_ASSESS = "competency.assess"
+    IMPORTS_ORGANISATION_RUN = "imports.organisation.run"
+    IMPORTS_ORGANISATION_COMMIT = "imports.organisation.commit"
+    # Seeded in Stage B; first used by the training register (0011):
+    # learning.own.view (own schedule/history/skills), team.learning.view (team),
+    # training_events.manage (programmes, events, sessions, participation).
     # Capabilities for later stages (no endpoints yet)
     LEARNING_OWN_VIEW = "learning.own.view"
     CERTIFICATES_OWN_VIEW = "certificates.own.view"

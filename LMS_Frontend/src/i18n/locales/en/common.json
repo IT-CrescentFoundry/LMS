@@ -23,7 +23,12 @@
     "users": "User accounts",
     "auditLog": "Audit log",
     "employees": "Employees",
-    "imports": "Imports"
+    "imports": "Imports",
+    "trainingRecords": "Training Records",
+    "trainingCalendar": "Training Calendar",
+    "skillMatrix": "Skill Matrix",
+    "competencyLibrary": "Competency Library",
+    "notifications": "Notifications"
   },
   "language": {
     "label": "Language"
@@ -296,7 +301,13 @@
     "loadMore": "Load more",
     "refresh": "Refresh",
     "never": "Never",
-    "closeDialog": "Close dialog"
+    "closeDialog": "Close dialog",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "none": "None",
+    "previous": "Previous",
+    "next": "Next"
   },
   "errors": {
     "notFoundTitle": "Page not found",
@@ -319,7 +330,8 @@
       "grades": "Grades",
       "levels": "Levels",
       "functionalRoles": "Functional roles",
-      "responsibilities": "Responsibilities"
+      "responsibilities": "Responsibilities",
+      "chart": "Org chart"
     },
     "status": {
       "active": "Active",
@@ -415,7 +427,8 @@
       "confirmClose": "Close unit",
       "confirmReopen": "Reopen unit",
       "expandAll": "Expand all",
-      "collapseAll": "Collapse all"
+      "collapseAll": "Collapse all",
+      "importUnits": "Import units from Excel"
     },
     "messages": {
       "created": "{{name}} was created.",
@@ -544,7 +557,8 @@
         "historyCaption": "Placement history of {{name}}",
         "historyError": "Could not load the placement history.",
         "alwaysTopLevel": "This unit has always been a top-level unit.",
-        "historyNote": "Periods without a parent unit are periods at the top level."
+        "historyNote": "Periods without a parent unit are periods at the top level.",
+        "viewEmployees": "View employees in this unit"
       },
       "dialogs": {
         "createRootTitle": "Add a top-level unit",
@@ -711,6 +725,20 @@
       "categoryHint": "Optional grouping, for example Safety.",
       "empty": "No responsibilities match.",
       "loadError": "Could not load the responsibilities."
+    },
+    "chart": {
+      "title": "Organisation chart",
+      "subtitle": "The current structure drawn from top to bottom. Expand or collapse units, or search to highlight them.",
+      "search": "Find a unit",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "expand": "Show units under {{name}}",
+      "collapse": "Hide units under {{name}}",
+      "children": "Sub-units: {{count}}",
+      "employees": "Employees",
+      "empty": "No organisation units exist yet.",
+      "loadError": "The organisation chart could not be loaded.",
+      "treeLabel": "Organisation units, top level first"
     }
   },
   "emp": {
@@ -1293,7 +1321,8 @@
     "sections": {
       "employees": "Employees",
       "assignments": "Assignments",
-      "reporting": "Reporting lines"
+      "reporting": "Reporting lines",
+      "units": "Organisation units"
     },
     "decisions": {
       "skip": "Skipped by decision",
@@ -1317,14 +1346,23 @@
       "location": "Location",
       "effective_from": "Effective from",
       "last_day": "Last day in effect",
-      "manager_code": "Manager's employee code"
+      "manager_code": "Manager's employee code",
+      "unit_code": "Unit code",
+      "unit_name": "Unit name",
+      "unit_type": "Unit type",
+      "parent_code": "Parent unit code",
+      "short_name": "Short name"
     },
     "profiles": {
       "employees": {
         "title": "Employees, assignments and reporting lines",
         "description": "Creates new employee records with their organisation assignments and line managers. Existing records are matched by employee code and changed only where you approve it."
       },
-      "unknown": "Profile {{code}}"
+      "unknown": "Profile {{code}}",
+      "organisation": {
+        "title": "Organisation units",
+        "description": "Creates organisation units (plants, departments, sections and so on) with their type, parent unit and location. Existing units are matched by unit code and never changed by an import; differences are reported."
+      }
     },
     "steps": {
       "label": "Import progress",
@@ -1481,7 +1519,8 @@
       "issueCount_one": "Showing {{count}} issue",
       "issueCount_other": "Showing {{count}} issues",
       "rowsLoadError": "Could not load the rows.",
-      "issuesLoadError": "Could not load the issues."
+      "issuesLoadError": "Could not load the issues.",
+      "effectiveFrom": "effective from {{date}}"
     },
     "decisionDialog": {
       "skip": {
@@ -1511,7 +1550,8 @@
       "commit": "Approve and import",
       "committing": "Importing… do not close this page",
       "recheckNote": "If the data changed since validation or the preview is too old, you will be asked to validate again.",
-      "noPermission": "You can review this import, but approving it needs the import approval permission."
+      "noPermission": "You can review this import, but approving it needs the import approval permission.",
+      "applyUpdatesHintOrganisation": "Without this, rows that would change existing units are skipped. Renames, type and location changes are recorded as audited corrections; a new parent is a move effective from today, and the previous placement stays in the history. Units are never closed or deleted by an import."
     },
     "result": {
       "completed": "Import completed",
@@ -1604,7 +1644,13 @@
       "status_change_not_applied": "The employment status in the file differs from the LMS. Imports never change status; change it on the employee's profile.",
       "separation_not_applied": "The file gives a separation date. Imports never separate employees; use the separation workflow on the employee's profile.",
       "unit_type_not_assignable": "Employees are not normally assigned to units of this type.",
-      "unknown": "Problem: {{code}}"
+      "unknown": "Problem: {{code}}",
+      "unit_type_unknown": "This unit type does not exist. Create it under Organisation → Unit types first, or use an existing type code or name.",
+      "location_unknown": "This location does not exist. Create it under Organisation → Locations first.",
+      "parent_not_found": "No unit with this parent code exists in the system or in this file.",
+      "parent_cycle_in_file": "The parent codes in this file form a loop (a unit would become its own ancestor).",
+      "parent_row_failed": "The parent unit's row has an error, so this unit cannot be created.",
+      "existing_unit_differs": "A unit with this code already exists with different details ({{differences}}). It is left unchanged."
     },
     "errors": {
       "codes": {
@@ -1659,6 +1705,656 @@
         "forbidden": "You do not have permission to do this.",
         "password_change_required": "Change your password before continuing."
       }
+    }
+  },
+  "feature": {
+    "schemaPending": {
+      "title": "This module is installed but its database update (migration 0011) is awaiting administrator approval.",
+      "body": "Nothing is wrong and no data is lost. The pages will work as soon as an administrator applies the update."
+    },
+    "errors": {
+      "schema_migration_pending": "This module is waiting for its database update (migration 0011) to be approved and applied.",
+      "version_conflict": "Someone else changed this record. Close the dialog, reload and try again.",
+      "forbidden": "You do not have permission to do this.",
+      "title_required": "A title (or a programme) is required.",
+      "invalid_code": "Codes may contain only letters, digits, hyphens and underscores (max 50).",
+      "training_programme_code_taken": "This programme code is already in use.",
+      "training_event_code_taken": "This event code is already in use.",
+      "training_event_cancelled": "This event is cancelled and cannot be changed.",
+      "training_event_closed": "Sessions of a completed or cancelled event cannot be changed.",
+      "training_event_not_found": "This training event was not found.",
+      "invalid_initial_status": "New events start as planned or scheduled.",
+      "status_unchanged": "The event already has this status.",
+      "status_transition_not_allowed": "This status change is not allowed.",
+      "reason_required": "Give a reason for cancelling or postponing.",
+      "schedule_dates_required": "Set the planned start date or add a session before scheduling.",
+      "actual_dates_required": "Record the actual start date of the training.",
+      "actual_date_in_future": "Actual dates cannot be in the future.",
+      "actual_start_required": "Record the actual start date first.",
+      "planned_period_invalid": "The planned end date cannot be before the start date.",
+      "actual_period_invalid": "The actual end date cannot be before the start date.",
+      "trainer_type_mismatch": "An external trainer cannot be an employee record.",
+      "session_period_invalid": "A session must end after it starts.",
+      "session_too_long": "A session cannot be longer than 24 hours; add one per day.",
+      "invalid_nomination_status": "Unknown nomination status.",
+      "employee_separated": "Separated employees cannot be nominated.",
+      "employee_not_found": "One or more employees were not found.",
+      "attendance_not_allowed": "Attendance can be recorded only for a scheduled or conducted event.",
+      "event_not_started": "Attendance cannot be recorded before the training starts.",
+      "minutes_need_attendance": "Minutes can be recorded only for present or partly present.",
+      "completion_not_allowed": "Completion can be recorded only after the event is marked as conducted.",
+      "completion_needs_attendance": "Completion needs attendance recorded as present or partly present.",
+      "certificate_needs_completion": "A certificate can be recorded only for a completed participant.",
+      "withdraw_after_attendance": "A participant with recorded attendance cannot be withdrawn.",
+      "invalid_range": "Choose a range of at most 100 days.",
+      "notification_mandatory": "Schedule changes and cancellations are always shown.",
+      "proficiency_scale_code_taken": "This scale code is already in use.",
+      "competency_code_taken": "This competency code is already in use.",
+      "skill_matrix_code_taken": "This matrix code is already in use.",
+      "levels_not_unique": "Level ranks and codes must be unique within a scale.",
+      "level_in_use": "A level that is already used cannot be removed or reordered.",
+      "competent_rank_invalid": "The 'skilled from rank' must be one of the levels.",
+      "competency_assessed": "The scale cannot change once assessments exist.",
+      "matrix_has_items": "Remove the requirements before changing the matrix's scale.",
+      "duplicate_competency": "A competency is listed twice.",
+      "scale_mismatch": "This competency uses a different proficiency scale.",
+      "level_not_in_scale": "The level must belong to the scale in use.",
+      "scale_unknown": "This competency has no scale; assess it within a skill matrix.",
+      "assessed_in_future": "The assessment date cannot be in the future.",
+      "self_assessment": "An employee cannot record their own official assessment.",
+      "add_and_remove": "An employee cannot be added and removed at once.",
+      "employee_not_linked": "Your account is not linked to an employee record.",
+      "validation_error": "Some values are missing or invalid. Check the form and try again."
+    }
+  },
+  "picker": {
+    "allUnits": "All units",
+    "allLocations": "All locations",
+    "allDesignations": "All designations",
+    "employeeSearch": "Type at least 2 characters of a name or code",
+    "employeesNotPermitted": "You need permission to view employees to choose people here.",
+    "noEmployees": "No matching employees",
+    "remove": "Remove {{name}}",
+    "selected": "Selected employees",
+    "allFunctionalRoles": "All functional roles"
+  },
+  "training": {
+    "status": {
+      "planned": "Planned",
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "postponed": "Postponed",
+      "cancelled": "Cancelled"
+    },
+    "timeframe": {
+      "past": "Past",
+      "ongoing": "Ongoing",
+      "upcoming": "Upcoming",
+      "unscheduled": "No date",
+      "cancelled": "Cancelled"
+    },
+    "mode": {
+      "classroom": "Classroom",
+      "online": "Online",
+      "hybrid": "Hybrid",
+      "ojt": "On-the-job"
+    },
+    "nomination": {
+      "nominated": "Nominated",
+      "confirmed": "Confirmed",
+      "withdrawn": "Withdrawn"
+    },
+    "attendance": {
+      "present": "Present",
+      "partial": "Partly present",
+      "absent": "Absent",
+      "excused": "Excused"
+    },
+    "completion": {
+      "completed": "Completed",
+      "not_completed": "Not completed"
+    },
+    "notRecorded": "Not recorded",
+    "scope": {
+      "global": "Showing all employees' records",
+      "team": "Showing your team's records",
+      "own": "Showing your own records",
+      "none": "Your account is not linked to an employee record, so no personal records are shown."
+    },
+    "monthOnly": "{{month}} (date not fixed)",
+    "noDate": "No date recorded",
+    "durationMinutes": "{{minutes}} min",
+    "durationHours": "{{hours}} h",
+    "durationHoursMinutes": "{{hours}} h {{minutes}} min",
+    "trainer": {
+      "internal": "Internal",
+      "external": "External"
+    },
+    "source": {
+      "manual": "Entered in the portal",
+      "import": "Imported"
+    },
+    "statusAction": {
+      "planned": "Return to planned",
+      "scheduled": "Schedule and publish",
+      "completed": "Mark as conducted",
+      "postponed": "Postpone",
+      "cancelled": "Cancel event"
+    },
+    "statusHelp": {
+      "planned": "The event goes back to the plan. Participants keep their nominations.",
+      "scheduled": "Participants with portal accounts are notified that the training is scheduled.",
+      "completed": "Record the actual dates on which the training took place. This does not mark anyone as attended or completed; record that per participant.",
+      "postponed": "Give a reason. Participants are told the schedule has changed.",
+      "cancelled": "Give a reason. Participants are notified. The event and its records are kept; cancelled events cannot be reopened."
+    },
+    "fields": {
+      "title": "Title",
+      "code": "Code",
+      "status": "Status",
+      "timeframe": "Timeframe",
+      "programme": "Programme",
+      "category": "Category",
+      "deliveryMode": "Delivery mode",
+      "orgUnit": "Organisation unit",
+      "location": "Location",
+      "designation": "Designation",
+      "calendarLabel": "Calendar",
+      "plannedMonth": "Planned month",
+      "plannedStart": "Planned start date",
+      "plannedEnd": "Planned end date",
+      "actualStart": "Actual start date",
+      "actualEnd": "Actual end date",
+      "durationMinutes": "Duration (minutes)",
+      "venue": "Venue",
+      "onlineLink": "Online meeting link",
+      "trainerType": "Trainer",
+      "trainer": "Trainer",
+      "trainerName": "Trainer name",
+      "trainerEmployee": "Trainer (employee)",
+      "provider": "Training provider",
+      "capacity": "Capacity",
+      "plannedCount": "Planned participants",
+      "reportedCount": "Reported attendance (headcount)",
+      "plannedManhours": "Planned man-hours",
+      "reportedManhours": "Reported man-hours",
+      "targetAudience": "Target audience",
+      "description": "Description",
+      "objectives": "Objectives",
+      "instructions": "Instructions for participants",
+      "when": "When",
+      "participants": "Participants · attended · completed",
+      "employee": "Employee",
+      "nomination": "Nomination",
+      "attendance": "Attendance",
+      "attendedMinutes": "Minutes attended",
+      "completion": "Completion",
+      "assessmentResult": "Assessment result",
+      "certificate": "Certificate number",
+      "remarks": "Remarks",
+      "source": "Source",
+      "reasonRequired": "Reason (required)",
+      "reasonOptional": "Note (optional)"
+    },
+    "register": {
+      "title": "Training records",
+      "description": "Past, ongoing and upcoming training in one register. Planned dates, actual dates, nominations, attendance and completion are kept apart: a plan or a nomination is never treated as proof that training happened.",
+      "newEvent": "New training event",
+      "tabs": {
+        "label": "Register sections",
+        "events": "Events",
+        "records": "Employee records",
+        "programmes": "Programmes"
+      },
+      "filters": "Filter training events",
+      "search": "Search title or code",
+      "any": "Any",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "clear": "Clear",
+      "loadError": "The training register could not be loaded.",
+      "summaryError": "The register summary could not be loaded.",
+      "empty": "No training events match.",
+      "emptyBody": "Change the filters, or record a new training event.",
+      "caption": "Training events",
+      "actualDates": "Actual dates",
+      "plannedDates": "Planned dates",
+      "counts": "{{participants}} · {{attended}} · {{completed}}",
+      "showing": "Showing {{from}}–{{to}} of {{total}}"
+    },
+    "summary": {
+      "title": "Recorded facts",
+      "total": "Events in register",
+      "upcoming": "Upcoming events",
+      "planned": "Planned",
+      "scheduled": "Scheduled",
+      "completed": "Conducted",
+      "participations": "Participation records",
+      "attended": "Attendance recorded",
+      "completions": "Completions recorded",
+      "note": "Counts include only what has been recorded. Planned events and nominations are not counted as attendance or completion."
+    },
+    "records": {
+      "filters": "Filter employee records",
+      "search": "Search employee name or code",
+      "loadError": "Employee training records could not be loaded.",
+      "empty": "No employee training records match.",
+      "caption": "Employee training records"
+    },
+    "programmes": {
+      "search": "Search programmes",
+      "showInactive": "Show inactive",
+      "create": "Add programme",
+      "edit": "Edit programme",
+      "editShort": "Edit {{title}}",
+      "loadError": "Programmes could not be loaded.",
+      "empty": "No training programmes yet.",
+      "caption": "Training programme catalogue",
+      "actions": "Actions",
+      "active": "Active",
+      "activeLabel": "Active",
+      "inactiveLabel": "Inactive"
+    },
+    "form": {
+      "createTitle": "New training event",
+      "editTitle": "Edit training event",
+      "description": "Record what is planned. Actual dates are recorded when the event is marked as conducted.",
+      "programmeHint": "Optional. The title is taken from the programme when left blank.",
+      "noProgramme": "No programme",
+      "codeHint": "Leave blank to generate one.",
+      "calendarLabelHint": "For example the departmental calendar this line comes from.",
+      "plannedWhen": "Planned timing",
+      "dating": {
+        "dates": "Planned dates",
+        "month": "Planned month only"
+      },
+      "onlineHint": "Must start with https://",
+      "trainerNameHint": "For an external trainer, or an internal trainer not yet in the LMS.",
+      "reportedHint": "A headcount reported by the organiser. It is not individual attendance and creates no participant records.",
+      "create": "Create event"
+    },
+    "event": {
+      "loadError": "This training event could not be loaded.",
+      "actions": "Event actions",
+      "edit": "Edit details",
+      "reason": "Reason: {{reason}}",
+      "planned": "Planned",
+      "actual": "Actual",
+      "general": "Details",
+      "recorded": "Recorded: participants · attended · completed",
+      "noActual": "No actual dates recorded: there is no evidence yet that this training took place.",
+      "join": "Open meeting link",
+      "manhoursNote": "Man-hours = duration × headcount (as in the company calendars). They are shown only when both values are recorded."
+    },
+    "sessions": {
+      "title": "Sessions",
+      "add": "Add session",
+      "edit": "Change session",
+      "help": "A dated slot of this event. Changing the time or venue of a scheduled event notifies the participants.",
+      "starts": "Starts",
+      "ends": "Ends",
+      "notes": "Notes",
+      "empty": "No sessions yet.",
+      "cancel": "Cancel session",
+      "cancelTitle": "Cancel this session?",
+      "cancelHelp": "The session is kept as cancelled. Participants of a scheduled event are notified.",
+      "cancelConfirm": "Cancel session",
+      "cancelled": "Cancelled"
+    },
+    "participants": {
+      "title": "Participants",
+      "evidenceNote": "A nomination does not prove attendance, and attendance does not prove completion. Record each only when you have the evidence.",
+      "loadError": "Participants could not be loaded.",
+      "empty": "No participants yet.",
+      "caption": "Participants of {{title}}",
+      "actions": "Actions",
+      "addTitle": "Add participants",
+      "addHelp": "Employees with a portal account are notified of the nomination.",
+      "employees": "Employees",
+      "addAs": "Add as",
+      "addSubmit": "Add {{count}}",
+      "addedTitle": "Participants added",
+      "added": "Added: {{count}}",
+      "already": "Already participating: {{codes}}",
+      "statusUnrecorded": "Employment status is not recorded for: {{codes}}. They were added, but their status is not assumed to be active.",
+      "record": "Record for {{name}}",
+      "recordTitle": "Training record: {{name}}",
+      "recordHelp": "Record only what you have evidence for. Leave a field as 'Not recorded' when it is unknown.",
+      "completionHint": "Only after the event is marked as conducted, and only with attendance recorded.",
+      "withdrawShort": "Withdraw",
+      "withdraw": "Withdraw participant",
+      "withdrawTitle": "Withdraw {{name}}?",
+      "withdrawHelp": "The record is kept as withdrawn. Participants with recorded attendance cannot be withdrawn."
+    },
+    "calendar": {
+      "title": "Training calendar",
+      "description": "Built from the training register; nothing is entered twice. You see what your access allows.",
+      "mine": "My schedule only",
+      "previous": "Previous period",
+      "next": "Next period",
+      "today": "Today",
+      "view": "Calendar view",
+      "month": "Month",
+      "week": "Week",
+      "list": "List",
+      "loadError": "The calendar could not be loaded.",
+      "empty": "No training in this period.",
+      "allDay": "All day",
+      "online": "Online",
+      "monthOnly": "Planned for this month, date not fixed",
+      "myStatus": "You: {{status}}",
+      "sessionCancelled": "Session cancelled"
+    }
+  },
+  "notif": {
+    "title": "Notifications",
+    "description": "Messages about your training: nominations, schedules, changes, cancellations, reminders and completions.",
+    "markAll": "Mark all as read",
+    "unreadOnly": "Unread only",
+    "loadError": "Notifications could not be loaded.",
+    "empty": "You have no notifications.",
+    "emptyUnread": "You have no unread notifications.",
+    "listLabel": "Your notifications",
+    "unread": "Unread",
+    "open": "Open",
+    "markRead": "Mark as read",
+    "markUnread": "Mark as unread",
+    "bell": "Notifications, {{count}} unread",
+    "types": {
+      "nominated": "Nomination",
+      "schedule_published": "Training scheduled",
+      "schedule_changed": "Schedule or venue changed",
+      "cancelled": "Training cancelled",
+      "reminder": "Reminder",
+      "completed": "Completion recorded",
+      "certificate_recorded": "Certificate recorded"
+    },
+    "preferences": {
+      "title": "What you receive",
+      "help": "Switch off the types you do not need. Schedule changes and cancellations are always shown.",
+      "loadError": "Preferences could not be loaded.",
+      "mandatory": "always on",
+      "on": "On",
+      "off": "Off",
+      "toggle": "Receive {{type}}"
+    },
+    "channels": {
+      "title": "Delivery channels",
+      "loadError": "Channel status could not be loaded.",
+      "in_app": "Portal notification centre",
+      "outlook": "Outlook calendar",
+      "teams": "Microsoft Teams",
+      "connected": "Connected",
+      "notConnected": "Not connected — requires Microsoft 365 setup by IT",
+      "reminders": "Reminders are created {{days}} day(s) before a scheduled session."
+    }
+  },
+  "dash": {
+    "subtitle": "Your training, notifications and skills at a glance. Only recorded information is shown.",
+    "quickLinks": "Quick links",
+    "upcoming": {
+      "title": "My upcoming training",
+      "empty": "No training scheduled for you in the next 30 days."
+    },
+    "register": {
+      "title": "Training register"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "unread": "Unread: {{count}}"
+    },
+    "skills": {
+      "title": "My skill gaps",
+      "below": "Below the required level: {{count}}",
+      "met": "At or above the required level: {{count}}",
+      "notAssessed": "Not yet assessed: {{count}}"
+    },
+    "openCalendar": "Open calendar",
+    "openRegister": "Open register",
+    "openNotifications": "Open notifications",
+    "openSkills": "Open my skills"
+  },
+  "skills": {
+    "gap": {
+      "below": "Below",
+      "belowBy": "Below by {{count}}",
+      "met": "Meets",
+      "exceeds": "Exceeds",
+      "not_assessed": "Not assessed",
+      "requirement_pending": "Requirement pending",
+      "scale_mismatch": "Different scale",
+      "value": "Numeric gap: {{value}}"
+    },
+    "risk": {
+      "high": "High risk",
+      "medium": "Medium risk",
+      "low": "Low risk",
+      "none": "No requirement",
+      "explainHigh": "{{skilled}} skilled ≤ {{required}} required",
+      "explainMedium": "{{skilled}} skilled ≤ {{required}} required + {{margin}}",
+      "explainLow": "{{skilled}} skilled > {{required}} required + {{margin}}"
+    },
+    "method": {
+      "assessor_rating": "Assessor rating",
+      "manager_rating": "Manager rating",
+      "practical_evaluation": "Practical evaluation",
+      "imported_matrix": "Imported skill matrix"
+    },
+    "notAssessedShort": "Not assessed",
+    "requiredShort": "Required: {{level}}",
+    "pendingShort": "pending",
+    "needsPlan": "Development plan needed",
+    "legend": "Proficiency levels",
+    "summary": {
+      "label": "Matrix summary",
+      "below": "Below requirement",
+      "met": "Meets",
+      "exceeds": "Exceeds",
+      "not_assessed": "Not assessed",
+      "requirement_pending": "Requirement pending",
+      "needs_plan": "Plan needed",
+      "risk_high": "High-risk skills",
+      "risk_medium": "Medium-risk skills",
+      "risk_low": "Low-risk skills"
+    },
+    "stats": {
+      "atLevel": "At {{level}}",
+      "notAssessed": "Not assessed",
+      "skilled": "Skilled (at or above competent level)",
+      "required": "Required skilled people",
+      "risk": "Staffing risk",
+      "note": "Risk follows the company skill-matrix rule: High when skilled people ≤ required; Medium when ≤ required + {{margin}}; otherwise Low."
+    },
+    "grid": {
+      "caption": "Skill matrix {{name}}: required and assessed levels",
+      "employee": "Employee",
+      "gaps": "Gaps: {{count}}",
+      "cellLabel": "{{competency}} for {{employee}}",
+      "noItems": "This matrix has no competencies yet.",
+      "noMembers": "No employees are in this matrix (or none in your scope).",
+      "loadError": "The skill matrix could not be loaded."
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "description": "Description",
+      "scale": "Proficiency scale",
+      "unit": "Organisation unit",
+      "location": "Location",
+      "riskMargin": "Medium-risk margin",
+      "requiredLevel": "Required level",
+      "requiredHeadcount": "Required skilled people",
+      "group": "Group",
+      "assessedLevel": "Assessed level",
+      "assessedOn": "Assessed on",
+      "method": "Method",
+      "assessor": "Assessor (employee)",
+      "assessorName": "Assessor name (if not an employee)",
+      "evidence": "Evidence or remarks",
+      "gap": "Gap",
+      "designation": "Designation",
+      "functionalRole": "Functional role"
+    },
+    "list": {
+      "title": "Skill matrices",
+      "description": "Each matrix lists the competencies a group needs, the required level and, where recorded, the required number of skilled people.",
+      "search": "Search matrices",
+      "showInactive": "Show inactive",
+      "loadError": "Skill matrices could not be loaded.",
+      "empty": "No skill matrices yet.",
+      "emptyManage": "Create a matrix, add competencies with their required levels, then add the employees it applies to.",
+      "inactive": "Inactive",
+      "noScope": "No scope set",
+      "items": "Competencies: {{count}}",
+      "members": "Employees: {{count}}"
+    },
+    "matrix": {
+      "create": "New skill matrix",
+      "edit": "Edit matrix",
+      "formHelp": "Scope is optional and descriptive; employees are added to the matrix explicitly.",
+      "scaleHint": "Required and assessed levels use this scale.",
+      "chooseScale": "Choose a scale",
+      "riskHint": "Company rule uses 1.",
+      "anyScope": "Not limited",
+      "active": "Active",
+      "scopeReferenceHint": "Designations and functional roles come from the organisation reference lists. If the one you need is not listed, add it under Organisation → Designations or Functional roles first."
+    },
+    "items": {
+      "button": "Competencies and requirements",
+      "title": "Competencies of {{name}}",
+      "help": "Leave the required level empty when it has not been decided; it is shown as 'requirement pending', never guessed.",
+      "none": "No competencies yet. Search below to add them.",
+      "pending": "Pending",
+      "add": "Add competencies from the library",
+      "searchPlaceholder": "Search name or code",
+      "up": "Move {{name}} up",
+      "down": "Move {{name}} down",
+      "remove": "Remove {{name}}"
+    },
+    "members": {
+      "button": "Employees",
+      "title": "Employees in {{name}}",
+      "help": "The matrix applies to these employees. Removing someone keeps their assessment history.",
+      "add": "Add employees",
+      "current": "Current employees ({{count}}) — tick to remove",
+      "none": "No employees yet.",
+      "removeLabel": "Remove {{name}} ({{code}})"
+    },
+    "history": {
+      "title": "Assessment history",
+      "empty": "No assessments recorded.",
+      "loadError": "The assessment history could not be loaded.",
+      "recorded": "recorded {{when}}"
+    },
+    "assess": {
+      "title": "Record an assessment",
+      "help": "Assessments are kept as history; the latest one is the current level.",
+      "chooseLevel": "Choose a level",
+      "submit": "Record assessment",
+      "saved": "Assessment recorded."
+    },
+    "my": {
+      "title": "My skills",
+      "description": "The skill matrices that apply to you, with the required level and your latest assessed level.",
+      "link": "My skills",
+      "loadError": "Your skills could not be loaded.",
+      "empty": "No skill matrix applies to you yet.",
+      "notLinked": "Your account is not linked to an employee record, so no personal skills can be shown."
+    }
+  },
+  "comp": {
+    "title": "Competency library",
+    "description": "Competency definitions and the proficiency scales they are assessed on. Scales are configuration: the company sources use different scales, so none is fixed in the software.",
+    "tabs": {
+      "label": "Library sections",
+      "library": "Competencies",
+      "scales": "Proficiency scales"
+    },
+    "filters": "Filter competencies",
+    "search": "Search name or code",
+    "showInactive": "Show inactive",
+    "create": "Add competency",
+    "edit": "Edit competency",
+    "loadError": "The competency library could not be loaded.",
+    "empty": "No competencies match.",
+    "emptyBody": "The library is filled by authorised administrators from the company's technical competency library.",
+    "caption": "Competency library",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noScale": "No scale (set per matrix)",
+    "scaleHint": "Cannot change once assessments exist.",
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "category": "Category",
+      "subCategory": "Sub-category",
+      "scale": "Scale",
+      "status": "Status",
+      "owner": "Owning unit",
+      "source": "Source reference",
+      "description": "Description",
+      "criteria": "Assessment criteria",
+      "applicability": "Applies to"
+    },
+    "bands": {
+      "title": "Required level by grade band",
+      "none": "No band requirements recorded.",
+      "note": "Bands are stored as written in the library; how they map to designations is still to be confirmed.",
+      "edit": "Band requirements",
+      "editTitle": "Required level by grade band: {{name}}",
+      "editHelp": "Enter bands exactly as written in the competency library (for example L6–L5). Leave the level empty when it has not been decided. Changes are audited and never alter recorded assessments.",
+      "needsScale": "Set this competency's proficiency scale before recording band levels.",
+      "band": "Band",
+      "label": "Label (optional)",
+      "requiredLevel": "Required level",
+      "pending": "Requirement pending",
+      "add": "Add band",
+      "remove": "Remove band {{band}}"
+    },
+    "scales": {
+      "help": "Levels are ordered by rank. Gaps compare ranks within one scale; numeric differences are shown only for numeric scales.",
+      "create": "Add scale",
+      "edit": "Edit scale",
+      "loadError": "Proficiency scales could not be loaded.",
+      "empty": "No proficiency scales yet.",
+      "ordinal": "Ordinal (order only)",
+      "numeric": "Numeric (differences meaningful)",
+      "levelsCaption": "Levels of {{name}}",
+      "rank": "Rank",
+      "level": "Level",
+      "label": "Label",
+      "descriptor": "Description",
+      "numericValue": "Value",
+      "competentMark": "skilled from here",
+      "competentRank": "Skilled from rank",
+      "competentHint": "Used for skilled headcount and staffing risk. Leave empty if not defined.",
+      "planGap": "Development plan from gap of",
+      "planHint": "Number of levels below the requirement that calls for an individual plan.",
+      "notSet": "Not set",
+      "gapMethod": "Gap calculation",
+      "gapHint": "Use numeric only when the level numbers can be subtracted meaningfully.",
+      "sourceNote": "Source note",
+      "source": "Source: {{note}}",
+      "formHelp": "Levels already used by a requirement or an assessment cannot be removed or reordered.",
+      "levels": "Levels",
+      "addLevel": "Add level",
+      "removeLevel": "Remove level {{code}}"
+    },
+    "governance": {
+      "label": "Approval status",
+      "draft": "Draft",
+      "approved": "Approved",
+      "approve": "Approve",
+      "returnToDraft": "Return to draft",
+      "approvedOn": "Approved {{when}}",
+      "draftHint": "Draft: not yet approved for use as an official definition.",
+      "approveTitle": "Approve {{name}}",
+      "draftTitle": "Return {{name}} to draft",
+      "approveHelp": "Approve only after the definition, levels and criteria have been reviewed by the responsible technical owner. The approval is recorded in the audit log with your name.",
+      "draftHelp": "The competency will be shown as a draft again. A reason is required and recorded in the audit log.",
+      "note": "Approval note (optional)",
+      "reason": "Reason"
     }
   }
 }

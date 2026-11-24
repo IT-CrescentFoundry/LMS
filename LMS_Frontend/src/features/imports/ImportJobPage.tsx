@@ -265,7 +265,11 @@ function ApprovalPanel({ job, canCommit, onReload }: { job: ImportJob; canCommit
           {updates > 0 ? (
             <CheckboxField
               label={t('imp.approve.applyUpdates', { count: updates })}
-              hint={t('imp.approve.applyUpdatesHint')}
+              hint={
+                job.profile_code === 'organisation'
+                  ? t('imp.approve.applyUpdatesHintOrganisation')
+                  : t('imp.approve.applyUpdatesHint')
+              }
               checked={applyUpdates}
               onChange={setApplyUpdates}
             />

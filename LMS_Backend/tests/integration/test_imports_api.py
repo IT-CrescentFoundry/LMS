@@ -113,7 +113,8 @@ def _codes(rows: list[dict[str, Any]], section: str, outcome: str) -> list[str]:
 def test_profiles_and_template(hr: Imports) -> None:
     profiles = hr.get("/profiles")
     assert [(p["code"], p["version"], p["can_run"], p["can_commit"]) for p in profiles] == [
-        ("employees", 1, True, True)
+        ("employees", 1, True, True),
+        ("organisation", 1, True, True),  # first release (0011)
     ]
     assert [s["kind"] for s in profiles[0]["sections"]] == ["employees", "assignments", "reporting"]
     response = hr.api.get("/api/v1/imports/profiles/employees/template")

@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 
 import { visibleNavItems, type NavItem } from '../app/navigation'
 import { useAuth } from '../features/auth/authContext'
@@ -11,17 +11,19 @@ interface SidebarNavProps {
 
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const { t } = useTranslation()
-  return items.map(({ id, labelKey, icon: Icon, to, matchNested }) => (
+  const { pathname } = useLocation()
+  return items.map(({ id, labelKey, icon: Icon, to, matchNested, excludeNested }) => (
     <li key={id}>
       <NavLink
         to={to ?? '/'}
-        end={!matchNested}
+        // A nested path owned by another item (e.g. /training/calendar) only matches exactly.
+        end={!matchNested || (excludeNested?.some((path) => pathname.startsWith(path)) ?? false)}
         onClick={onNavigate}
-        className={({ isActive }) =>
-          `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none ${
+        className={({ isActive }) => {
+          return `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none ${
             isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-700 hover:bg-slate-100'
           }`
-        }
+        }}
       >
         <Icon aria-hidden="true" className="size-5 shrink-0" />
         <span className="min-w-0">{t(labelKey)}</span>

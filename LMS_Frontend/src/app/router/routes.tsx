@@ -4,10 +4,20 @@ import { AuditLogPage } from '../../features/admin/AuditLogPage'
 import { UsersPage } from '../../features/admin/UsersPage'
 import { ChangePasswordPage } from '../../features/auth/ChangePasswordPage'
 import { LoginPage } from '../../features/auth/LoginPage'
-import { PERMISSIONS } from '../../features/auth/permissions'
-import { PublicOnlyRoute, RequireAuth, RequirePermission } from '../../features/auth/RouteGuards'
+import {
+  COMPETENCY_VIEW_PERMISSIONS,
+  IMPORT_RUN_PERMISSIONS,
+  PERMISSIONS,
+  TRAINING_VIEW_PERMISSIONS,
+} from '../../features/auth/permissions'
+import {
+  PublicOnlyRoute,
+  RequireAnyPermission,
+  RequireAuth,
+  RequirePermission,
+} from '../../features/auth/RouteGuards'
 import { CHANGE_PASSWORD_PATH, LOGIN_PATH } from '../../features/auth/safeRedirect'
-import { DashboardPage } from '../../features/dashboard/DashboardPage'
+import { AppLoadingScreen } from '../../features/auth/SessionScreens'
 import { NotFoundPage } from '../../features/errors/NotFoundPage'
 import { RouteErrorPage } from '../../features/errors/RouteErrorPage'
 import { OrganisationLayout } from '../../features/organisation/OrganisationLayout'
@@ -24,6 +34,10 @@ import { AuthLayout } from '../../layouts/AuthLayout'
 export const routes: RouteObject[] = [
   {
     errorElement: <RouteErrorPage />,
+    // Shown on the first load while the matched `lazy` route's code downloads
+    // (the router renders no route until then). Later navigations keep the
+    // current page on screen instead.
+    HydrateFallback: AppLoadingScreen,
     children: [
       {
         path: LOGIN_PATH,
@@ -50,7 +64,13 @@ export const routes: RouteObject[] = [
             path: '/',
             element: <AppLayout />,
             children: [
-              { index: true, element: <DashboardPage /> },
+              {
+                // Loaded on first visit like every feature page (keeps the entry bundle small).
+                index: true,
+                lazy: async () => ({
+                  Component: (await import('../../features/dashboard/DashboardPage')).DashboardPage,
+                }),
+              },
               {
                 path: 'admin/users',
                 element: (
@@ -85,6 +105,12 @@ export const routes: RouteObject[] = [
                     lazy: async () => ({
                       Component: (await import('../../features/organisation/OrganisationStructurePage'))
                         .OrganisationStructurePage,
+                    }),
+                  },
+                  {
+                    path: 'chart',
+                    lazy: async () => ({
+                      Component: (await import('../../features/organisation/OrgChartPage')).OrgChartPage,
                     }),
                   },
                   {
@@ -278,9 +304,9 @@ export const routes: RouteObject[] = [
                           const { NewImportPage } = await import('../../features/imports/NewImportPage')
                           return {
                             element: (
-                              <RequirePermission permission={PERMISSIONS.IMPORTS_EMPLOYEES_RUN}>
+                              <RequireAnyPermission permissions={IMPORT_RUN_PERMISSIONS}>
                                 <NewImportPage />
-                              </RequirePermission>
+                              </RequireAnyPermission>
                             ),
                           }
                         },
@@ -300,6 +326,90 @@ export const routes: RouteObject[] = [
                     ],
                   },
                 ],
+              },
+              {
+                // First release (migration 0011): training register and calendar. Any of
+                // the training view permissions opens them; the API narrows the data to
+                // the user's scope (all / team / own) and enforces every change.
+                path: 'training',
+                element: (
+                  <RequireAnyPermission permissions={TRAINING_VIEW_PERMISSIONS}>
+                    <Outlet />
+                  </RequireAnyPermission>
+                ),
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import('../../features/training/TrainingRegisterPage')).TrainingRegisterPage,
+                    }),
+                  },
+                  {
+                    path: 'calendar',
+                    lazy: async () => ({
+                      Component: (await import('../../features/training/TrainingCalendarPage')).TrainingCalendarPage,
+                    }),
+                  },
+                  {
+                    path: 'events/:eventId',
+                    lazy: async () => ({
+                      Component: (await import('../../features/training/EventDetailPage')).EventDetailPage,
+                    }),
+                  },
+                ],
+              },
+              {
+                // Skill matrix and competency library (migration 0011).
+                path: 'skills',
+                element: (
+                  <RequireAnyPermission permissions={COMPETENCY_VIEW_PERMISSIONS}>
+                    <Outlet />
+                  </RequireAnyPermission>
+                ),
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import('../../features/skills/SkillsPages')).SkillsHomePage,
+                    }),
+                  },
+                  {
+                    path: 'me',
+                    lazy: async () => ({
+                      Component: (await import('../../features/skills/SkillsPages')).MySkillsPage,
+                    }),
+                  },
+                  {
+                    path: ':matrixId',
+                    lazy: async () => ({
+                      Component: (await import('../../features/skills/SkillsPages')).MatrixPage,
+                    }),
+                  },
+                ],
+              },
+              {
+                path: 'competencies',
+                element: (
+                  <RequireAnyPermission permissions={COMPETENCY_VIEW_PERMISSIONS}>
+                    <Outlet />
+                  </RequireAnyPermission>
+                ),
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import('../../features/competencies/CompetencyLibraryPage'))
+                        .CompetencyLibraryPage,
+                    }),
+                  },
+                ],
+              },
+              {
+                // Every signed-in user has a notification centre (own messages only).
+                path: 'notifications',
+                lazy: async () => ({
+                  Component: (await import('../../features/notifications/NotificationsPage')).NotificationsPage,
+                }),
               },
               { path: '*', element: <NotFoundPage /> },
             ],

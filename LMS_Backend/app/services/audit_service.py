@@ -98,6 +98,27 @@ class AuditEventType(StrEnum):
     IMPORT_VALUE_MAPPING_APPROVED = "import.mapping.approved"
     IMPORT_VALUE_MAPPING_REJECTED = "import.mapping.rejected"
     IMPORT_VALUE_MAPPING_SUPERSEDED = "import.mapping.superseded"
+    # First release (0011): training register, competency, skill matrix
+    TRAINING_PROGRAMME_CREATED = "training_programme.created"
+    TRAINING_PROGRAMME_UPDATED = "training_programme.updated"
+    TRAINING_EVENT_CREATED = "training_event.created"
+    TRAINING_EVENT_UPDATED = "training_event.updated"
+    TRAINING_EVENT_STATUS_CHANGED = "training_event.status_changed"
+    TRAINING_SESSION_CREATED = "training_session.created"
+    TRAINING_SESSION_UPDATED = "training_session.updated"
+    TRAINING_PARTICIPANT_ADDED = "training_participation.added"
+    TRAINING_PARTICIPATION_UPDATED = "training_participation.updated"
+    PROFICIENCY_SCALE_CREATED = "proficiency_scale.created"
+    PROFICIENCY_SCALE_UPDATED = "proficiency_scale.updated"
+    COMPETENCY_CREATED = "competency.created"
+    COMPETENCY_UPDATED = "competency.updated"
+    COMPETENCY_STATUS_CHANGED = "competency.status_changed"
+    COMPETENCY_BAND_REQUIREMENTS_CHANGED = "competency.band_requirements_changed"
+    SKILL_MATRIX_CREATED = "skill_matrix.created"
+    SKILL_MATRIX_UPDATED = "skill_matrix.updated"
+    SKILL_MATRIX_ITEMS_CHANGED = "skill_matrix.items_changed"
+    SKILL_MATRIX_MEMBERS_CHANGED = "skill_matrix.members_changed"
+    COMPETENCY_ASSESSMENT_RECORDED = "competency_assessment.recorded"
 
 
 class TargetType(StrEnum):
@@ -117,6 +138,11 @@ class TargetType(StrEnum):
     EMPLOYEE = "employee"
     IMPORT_JOB = "import_job"
     IMPORT_VALUE_MAPPING = "import_value_mapping"
+    TRAINING_PROGRAMME = "training_programme"
+    TRAINING_EVENT = "training_event"
+    PROFICIENCY_SCALE = "proficiency_scale"
+    COMPETENCY = "competency"
+    SKILL_MATRIX = "skill_matrix"
 
 
 _FORBIDDEN_KEY_FRAGMENTS = ("password", "token", "secret", "hash", "csrf", "cookie", "credential")

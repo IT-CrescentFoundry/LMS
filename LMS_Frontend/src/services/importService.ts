@@ -250,7 +250,10 @@ function parseChanges(data: unknown): ImportRow['changes'] {
   if (!isRecord(data)) return null
   const changes: NonNullable<ImportRow['changes']> = {}
   for (const [field, change] of Object.entries(data)) {
-    if (isRecord(change)) changes[field] = { from: plainValue(change.from), to: plainValue(change.to) }
+    if (isRecord(change)) {
+      changes[field] = { from: plainValue(change.from), to: plainValue(change.to) }
+      if (typeof change.effective_date === 'string') changes[field].effective_date = change.effective_date
+    }
   }
   return changes
 }

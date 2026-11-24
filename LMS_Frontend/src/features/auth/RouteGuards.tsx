@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router'
 
 import { ForbiddenPage } from '../errors/ForbiddenPage'
 import { useAuth, useHasPermission } from './authContext'
-import type { PermissionCode } from './permissions'
+import { hasAnyPermission, type PermissionCode } from './permissions'
 import { CHANGE_PASSWORD_PATH, LOGIN_PATH, safeRedirectTarget } from './safeRedirect'
 import { SessionLoadingScreen, SessionUnavailableScreen } from './SessionScreens'
 
@@ -61,4 +61,16 @@ export function RequirePermission({
   children: ReactNode
 }) {
   return useHasPermission(permission) ? children : <ForbiddenPage />
+}
+
+/** Like RequirePermission, but any one of `permissions` is enough. */
+export function RequireAnyPermission({
+  permissions,
+  children,
+}: {
+  permissions: readonly PermissionCode[]
+  children: ReactNode
+}) {
+  const { user } = useAuth()
+  return hasAnyPermission(user, permissions) ? children : <ForbiddenPage />
 }

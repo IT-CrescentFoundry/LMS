@@ -1,6 +1,7 @@
-import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react'
+import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, FileSpreadsheet, Plus } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 
 import {
   inputClassName,
@@ -49,6 +50,7 @@ export function OrganisationStructurePage() {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage
   const canManage = useHasPermission(PERMISSIONS.ORGANISATION_MANAGE)
+  const canImport = useHasPermission(PERMISSIONS.IMPORTS_ORGANISATION_RUN)
   const wide = useMediaQuery(WIDE_LAYOUT_QUERY)
   const ids = { search: useId(), type: useId(), status: useId(), asOf: useId() }
 
@@ -167,10 +169,18 @@ export function OrganisationStructurePage() {
         subtitle={t('org.structure.subtitle')}
         canManage={canManage}
         actions={
-          <button type="button" onClick={() => setDialog({ kind: 'create', parent: null })} className={primaryButtonClassName}>
-            <Plus aria-hidden="true" className="size-4" />
-            {t('org.actions.addTopLevel')}
-          </button>
+          <>
+            {canImport ? (
+              <Link to="/imports/new?profile=organisation" className={secondaryButtonClassName}>
+                <FileSpreadsheet aria-hidden="true" className="size-4" />
+                {t('org.actions.importUnits')}
+              </Link>
+            ) : null}
+            <button type="button" onClick={() => setDialog({ kind: 'create', parent: null })} className={primaryButtonClassName}>
+              <Plus aria-hidden="true" className="size-4" />
+              {t('org.actions.addTopLevel')}
+            </button>
+          </>
         }
       />
 

@@ -141,6 +141,16 @@ class Settings(BaseSettings):
     # A fixed offset avoids a runtime time-zone database dependency.
     business_utc_offset_minutes: int = Field(default=330, ge=-720, le=840)
 
+    # --- Training notifications (first release) --------------------------------
+    # In-app reminders are created this many days before a scheduled session starts
+    # (comma-separated, e.g. "7,1"). Each (session, start time, offset, employee) is
+    # notified at most once; a rescheduled session gets fresh reminders.
+    training_reminder_offsets_days: str = Field(default="7,1", pattern=r"^\d{1,2}(,\d{1,2}){0,4}$")
+
+    @property
+    def reminder_offsets(self) -> tuple[int, ...]:
+        return tuple(sorted({int(part) for part in self.training_reminder_offsets_days.split(",")}))
+
     # --- Imports (Stage D) -----------------------------------------------------
     # Uploaded workbooks are kept only while their job is open, in this directory,
     # which must be outside the source tree (default: per-user local app data).

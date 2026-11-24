@@ -8,7 +8,7 @@ The LMS is built in explicitly defined stages. Each stage has a clear scope, dep
 | **A.1** | Architecture alignment with business requirements (documentation only) | **Complete** |
 | **B** | Identity, access and audit (accounts, password sign-in, sessions and idle logout, CSRF, access roles, audit, Super Admin bootstrap, sign-in UI) | **Complete** — kiosk PIN, badges and OTP/SSO deferred (Q-07, Q-08, Q-09) |
 | C | Organisation and employee core (incl. functional roles, responsibilities) + Control Room v1 | **In progress** — C1, C2, C3 committed; C4 (scoped access), positions and Control Room remain |
-| D | Import framework + profile 1 (organisation & employees) | **Implemented, awaiting review** — framework and `employees` v1; organisation/reference-data part of profile 1 deferred |
+| D | Import framework + profile 1 (organisation & employees) | **Complete** — framework and `employees` v1; migration `0010` applied to the development database; organisation/reference-data part of profile 1 deferred (organisation units later delivered in the first release, profile `organisation` v1) |
 | E | Training operations + profiles 4, 5, 6 | Not started |
 | F | Competency framework & development plans + profiles 2, 3 | Not started |
 | G | Learning catalogue & content governance | Not started |
@@ -127,11 +127,35 @@ FR-IAM-002 is met for personal devices only; kiosk timeouts are deferred.
 **Scope:** shared pipeline (staging, mapping profiles, header aliases, value mappings, protected exclusion list, validation layers, duplicate candidates, diff/preview, confirmation with stale check, transactional commit, provenance, history, error export); **profile 1** (organisation & employees).
 **Decisions needed:** Q-28, Q-31, Q-21.
 **Exit criteria:** idempotent re-import; CTC/compensation columns provably never stored; hostile files rejected; synthetic large-file test.
-**Status:** implemented and verified on the test database — **uncommitted, awaiting review**; migration `0010` not applied to the development database. Delivered: the framework (versioned profiles, job state machine, hostile-file checks, header detection, deterministic column mapping, protected exclusion list, normalisation, layered validation as a dry run through the C3 services, probable-duplicate decisions, reviewed reference-value mappings, preview with stale checks, explicit approval, one-transaction commit, provenance, history, formula-safe error report), profile `employees` v1 (employees, assignments, reporting lines), the Import Control Room screens in four languages, and migration `0010` (tables and four permissions). All four exit criteria are covered by tests (re-import → `unchanged`; sensitive columns refused and never stored, logged, audited or reported; hostile-file suite; 2,000-employee synthetic volume test).
+**Status:** **complete**. Implemented, verified on the test database, acceptance-reviewed and committed; migration `0010` applied to the development database. Delivered: the framework (versioned profiles, job state machine, hostile-file checks, header detection, deterministic column mapping, protected exclusion list, normalisation, layered validation as a dry run through the C3 services, probable-duplicate decisions, reviewed reference-value mappings, preview with stale checks, explicit approval, one-transaction commit, provenance, history, formula-safe error report), profile `employees` v1 (employees, assignments, reporting lines), the Import Control Room screens in four languages, and migration `0010` (tables and four permissions). All four exit criteria are covered by tests (re-import → `unchanged`; sensitive columns refused and never stored, logged, audited or reported; hostile-file suite; 2,000-employee synthetic volume test).
 
 **Acceptance review (2026-11-17):** the implementation was re-inspected and hardened before acceptance. Corrected: a commit that no longer matched the approved preview could apply corrections nobody had reviewed (now refused, `import_records_changed`); expiry was enforced only when a job was viewed (now on every action); the header row could be moved onto a data row through the API, bypassing the exclusion check (now fixed to the detected row); malformed worksheet XML caused server errors (now `422 file_corrupted`); uploaded files were deleted before the job's new status was saved (now released in the same transaction and deleted afterwards, with housekeeping for orphans, overdue jobs and abandoned validations); one import could exceed what finishes within the browser's 5-minute wait (now at most 6,000 rows). The bn/hi/gu catalogues are loaded on demand, reducing the main JavaScript bundle from 795 kB to 387 kB; an intermittent frontend test (a 1-second wait too short for on-demand pages under load) was fixed. Details: [import profiles §0](database/EXCEL_IMPORT_PROFILES.md), ADR-051–053.
 
 Implemented but awaiting human review: the bn/hi/gu translations (machine drafts, Q-58). Deferred: saved mapping profiles, an administrator-maintained exclusion list, header-row selection, a second approver (Q-31), full retention rules (Q-21), a provenance screen, and the organisation and reference-data worksheets of profile 1 (Q-47, Q-53). Open: Q-21, Q-28 (source system), Q-31, Q-47, Q-53, Q-58. **Stage E has not started.**
+
+## First release (2026-11-23) — brought forward from Stages E and F
+
+Implemented per the [revised first-release scope](product/REVISED_FIRST_RELEASE_SCOPE.md): training register (programmes, events with planned vs actual, sessions, participation), training calendar, in-app notifications, competency library, configurable scales, skill matrices with gaps and staffing risk, organisation-unit import profile, org chart.
+
+**Migration `0011`:** verified on the test database, then applied to `crescent_lms_dev` on 2026-11-23 after a backup and an isolated restore test both passed.
+
+**Technical verification (completed 2026-11-24):**
+* Database integrity checks: 148 foreign keys, 0 orphaned records.
+* HR Admin application smoke test.
+* The owner's manual browser verification.
+* Automated backend and frontend tests and static checks.
+
+All of these passed, and the synthetic smoke-test account has been disabled. Record: [execution report](database/verification/MIGRATION_0011_EXECUTION_REPORT_20261123.md).
+
+**Business readiness remains outstanding:**
+* Production deployment.
+* Business-data onboarding.
+* Stakeholder UAT.
+* Outlook/Teams integration.
+* Scheduling of the training-reminder job.
+* Open decisions D-01…D-14.
+
+Remaining Stage E/F scope below (batches, venues, finalisation lock, feedback, requests, calendar/attendance/matrix imports, development plans, achievement rules) is unchanged.
 
 ## Stage E — Training operations + profiles 4, 5, 6
 

@@ -2,13 +2,14 @@ import { useTranslation } from 'react-i18next'
 
 import type { ImportIssue, ImportStatus } from '../../types/imports'
 import { isEmployeeErrorCode } from '../employees/employeeErrors'
+import { isOrgErrorCode, isWarningCode } from '../organisation/orgErrors'
 import { describeImportError, isImportIssueCode } from './importErrors'
 
 /** Section names of the profile (unknown sections are shown by name). */
 export function useSectionLabel() {
   const { t } = useTranslation()
   return (section: string): string =>
-    section === 'employees' || section === 'assignments' || section === 'reporting'
+    section === 'employees' || section === 'assignments' || section === 'reporting' || section === 'units'
       ? t(`imp.sections.${section}`)
       : section
 }
@@ -22,6 +23,18 @@ export function useFieldLabel() {
   }
 }
 
+/** "field: from → to; ..." for `existing_unit_differs` (values are shown as sent). */
+function describeDifferences(value: unknown): string {
+  if (value === null || typeof value !== 'object') return ''
+  return Object.entries(value as Record<string, unknown>)
+    .map(([field, change]) => {
+      const pair = (change ?? {}) as { from?: unknown; to?: unknown }
+      const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v))
+      return `${field}: ${show(pair.from)} → ${show(pair.to)}`
+    })
+    .join('; ')
+}
+
 /** The translated explanation of one row-level issue. */
 export function useIssueMessage() {
   const { t } = useTranslation()
@@ -33,9 +46,12 @@ export function useIssueMessage() {
         rows: Array.isArray(params.rows) ? params.rows.join(', ') : '',
         current: typeof params.current === 'string' ? t(`emp.status.${params.current}` as 'emp.status.active') : '',
         max: typeof params.max === 'number' ? params.max : '',
+        differences: describeDifferences(params.differences),
       })
     }
     if (isEmployeeErrorCode(issue.code)) return t(`emp.errors.codes.${issue.code}`)
+    if (isOrgErrorCode(issue.code)) return t(`org.errors.codes.${issue.code}`)
+    if (isWarningCode(issue.code)) return t(`org.warnings.${issue.code}`)
     return t('imp.issues.unknown', { code: issue.code })
   }
 }

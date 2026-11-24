@@ -9,8 +9,8 @@ import { IMPORT_STATUSES, isImportStatus, type ImportStatus } from '../../types/
 import { useRefreshSessionOnForbidden } from '../admin/adminQueries'
 import { Cell, HeaderCell } from '../admin/AdminParts'
 import { TABLE_CONTAINER, TABLE_LAYOUTS } from '../admin/tableLayouts'
-import { useHasPermission } from '../auth/authContext'
-import { PERMISSIONS } from '../auth/permissions'
+import { useAuth } from '../auth/authContext'
+import { hasAnyPermission, IMPORT_RUN_PERMISSIONS } from '../auth/permissions'
 import { ListFooter } from '../organisation/ListParts'
 import { InfoNote, SelectField } from '../organisation/OrgParts'
 import { ImportErrorState, ImportStatusBadge } from './ImportParts'
@@ -32,7 +32,7 @@ export function ImportsOverviewPage() {
   const [params, setParams] = useSearchParams()
   const statusParam = params.get('status')
   const status = isImportStatus(statusParam) ? statusParam : undefined
-  const canRun = useHasPermission(PERMISSIONS.IMPORTS_EMPLOYEES_RUN)
+  const canRun = hasAnyPermission(useAuth().user, IMPORT_RUN_PERMISSIONS)
   const jobs = useImportJobs({ status })
   const pending = useValueMappings({ status: 'pending' })
   useRefreshSessionOnForbidden(jobs.error)

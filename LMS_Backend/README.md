@@ -62,6 +62,14 @@ python -m venv .venv
 .venv\Scripts\python -m app.cli grant-super-admin --login-id <login-id>
 .venv\Scripts\python -m app.cli revoke-super-admin --login-id <login-id>
 
+# Scheduled job (non-interactive; needs migration 0011): create due in-app training
+# reminders for every participant, signed in or not. Idempotent - run it every 15 minutes
+# from Windows Task Scheduler (Program: .venv\Scripts\python.exe, Arguments:
+# "-m app.jobs training-reminders", Start in: LMS_Backend). Exit codes: 0 ok, 1 failed
+# (nothing saved, next run retries), 2 not configured, 3 migration 0011 not applied.
+.venv\Scripts\python -m app.jobs training-reminders --dry-run   # count only
+.venv\Scripts\python -m app.jobs training-reminders
+
 # Regenerate the lock file after an approved dependency change
 .venv\Scripts\python -m pip freeze --exclude-editable   # keep the header lines of requirements.lock.txt
 ```

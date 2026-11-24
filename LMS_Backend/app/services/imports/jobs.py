@@ -58,7 +58,7 @@ from app.models.imports import (
 from app.models.organisation import GraphLock
 from app.services.audit_service import AuditEventType, TargetType, record_audit_event
 from app.services.identity.context import Actor
-from app.services.imports import storage
+from app.services.imports import organisation_profile, storage
 from app.services.imports.employees_profile import (
     DomainContext,
     IssueDraft,
@@ -71,6 +71,7 @@ from app.services.imports.employees_profile import (
     run_domain,
 )
 from app.services.imports.profiles import (
+    ORGANISATION_V1,
     FieldType,
     ProfileSpec,
     get_profile,
@@ -86,7 +87,7 @@ from app.services.imports.workbook import (
     malformed_workbook_as_422,
     open_workbook,
 )
-from app.services.organisation.support import audit
+from app.services.organisation.support import audit, business_today
 
 S = ImportStatus
 TRANSITIONS: dict[str, frozenset[str]] = {
@@ -638,9 +639,14 @@ def _evaluate(
                 decision := decisions.get(_row_key(row.section, row.sheet, row.row_number))
             ) is not None:
                 row.decision = decision["decision"]
+    index = ReferenceIndex.load(db)
+    if profile.code == ORGANISATION_V1.code:
+        organisation_profile.check_within_file(staged)
+        ctx = DomainContext(db, actor, meta, job.public_id, apply_updates, commit, index, {})
+        organisation_profile.run_domain(ctx, staged, business_today(settings))
+        return staged, counts, index.unresolved
     existing = load_existing(db, staged)
     check_within_file(staged, profile, existing, load_people_by_joining_date(db, staged))
-    index = ReferenceIndex.load(db)
     resolve_references(staged, index, profile)
     ctx = DomainContext(db, actor, meta, job.public_id, apply_updates, commit, index, existing)
     run_domain(ctx, staged, profile)
@@ -1017,6 +1023,7 @@ def _record_commit(
 
 
 _TARGETS = {
+    "units": "org_unit",
     "employees": "employee",
     "assignments": "employee_assignment",
     "reporting": "reporting_relationship",

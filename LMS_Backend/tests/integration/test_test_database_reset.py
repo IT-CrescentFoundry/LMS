@@ -38,7 +38,8 @@ pytestmark = pytest.mark.db
 
 SEEDED_ROLES = 6
 # 17 Stage B (0002) + 5 organisation (0007) + 4 employee (0009) + 4 imports (0010)
-SEEDED_PERMISSIONS = 30
+# + 6 first release (0011: training.records.view, competency.*, imports.organisation.*)
+SEEDED_PERMISSIONS = 36
 META = RequestMeta(request_id="reset-regression", ip_address="127.0.0.1")
 
 

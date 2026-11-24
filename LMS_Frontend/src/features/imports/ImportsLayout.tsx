@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet } from 'react-router'
 
 import { useAuth } from '../auth/authContext'
-import { hasPermission, PERMISSIONS } from '../auth/permissions'
+import { hasAnyPermission, IMPORT_RUN_PERMISSIONS } from '../auth/permissions'
 
 /**
  * Shell of the Import Control Room: section pills (Overview, New import,
@@ -18,7 +18,7 @@ export function ImportsLayout() {
     {
       path: '/imports/new',
       labelKey: 'imp.nav.newImport',
-      show: hasPermission(user, PERMISSIONS.IMPORTS_EMPLOYEES_RUN),
+      show: hasAnyPermission(user, IMPORT_RUN_PERMISSIONS),
       end: true,
     },
     { path: '/imports/mappings', labelKey: 'imp.nav.mappings', show: true, end: true },

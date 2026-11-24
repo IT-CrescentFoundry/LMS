@@ -191,7 +191,7 @@ export interface ImportRow {
   outcome: string
   values: Record<string, unknown>
   source: Record<string, unknown>
-  changes: Record<string, { from: unknown; to: unknown }> | null
+  changes: Record<string, { from: unknown; to: unknown; effective_date?: string }> | null
   decision: RowDecision | null
   decision_reason: string | null
   target_public_id: string | null

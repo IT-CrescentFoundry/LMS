@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Design document. Implemented so far: organisation structure and reference data (C1, C2) and the employee master with its screens (C3a, C3b — uncommitted, awaiting review); see §12. Positions, scoped permissions (C4) and imports (D) are not implemented. Revised in Stage A.1 (functional roles, responsibilities, access-role separation; import design moved to the import-profiles document). |
+| **Status** | Design document. Implemented so far: organisation structure and reference data (C1, C2) and the employee master with its screens (C3a, C3b); see §12. The Stage D import framework is complete (profile `employees` v1; organisation units are imported through profile `organisation` v1 from the first release). Positions and scoped permissions (C4) are not implemented. Revised in Stage A.1 (functional roles, responsibilities, access-role separation; import design moved to the import-profiles document). |
 | **Stage** | Organisation core: Stage C. Organisation import (profile 1): Stage D. See [roadmap](../LMS_IMPLEMENTATION_ROADMAP.md). |
 | **Labels** | **[C]** confirmed · **[P]** proposed · **[A]** assumption (register `Q-xx` in [product requirements §13](../product/LMS_PRODUCT_REQUIREMENTS.md)) · **[F]** future |
 | **Related** | [Database design §5](../database/LMS_DATABASE_DESIGN.md) · [Import profiles](../database/EXCEL_IMPORT_PROFILES.md) (profile 1) · [System architecture](LMS_SYSTEM_ARCHITECTURE.md) · [Decisions](../decisions/ARCHITECTURAL_DECISIONS.md) (ADR-013, ADR-023, ADR-029) |

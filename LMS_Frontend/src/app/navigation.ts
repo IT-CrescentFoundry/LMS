@@ -1,21 +1,31 @@
 import {
   Award,
+  Bell,
   BookOpen,
+  CalendarDays,
   ChartColumn,
   ClipboardCheck,
   FileSpreadsheet,
   GraduationCap,
+  Grid3x3,
   IdCard,
   LayoutDashboard,
+  Library,
   Network,
   Route,
   ScrollText,
-  Sparkles,
   Users,
   type LucideIcon,
 } from 'lucide-react'
 
-import { hasPermission, PERMISSIONS, type PermissionCode } from '../features/auth/permissions'
+import {
+  COMPETENCY_VIEW_PERMISSIONS,
+  hasAnyPermission,
+  hasPermission,
+  PERMISSIONS,
+  TRAINING_VIEW_PERMISSIONS,
+  type PermissionCode,
+} from '../features/auth/permissions'
 import type { CurrentUser } from '../types/auth'
 
 export type NavLabelKey =
@@ -32,6 +42,11 @@ export type NavLabelKey =
   | 'nav.users'
   | 'nav.auditLog'
   | 'nav.imports'
+  | 'nav.trainingRecords'
+  | 'nav.trainingCalendar'
+  | 'nav.skillMatrix'
+  | 'nav.competencyLibrary'
+  | 'nav.notifications'
 
 export interface NavItem {
   id: string
@@ -48,6 +63,10 @@ export interface NavItem {
    * only: the page and its API enforce the permission themselves.
    */
   requiredPermission?: PermissionCode
+  /** Show the item when the user holds at least one of these permissions. */
+  requiredAnyPermission?: readonly PermissionCode[]
+  /** Nested paths that belong to another item (not highlighted here). */
+  excludeNested?: readonly string[]
 }
 
 /**
@@ -76,6 +95,54 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'main',
     matchNested: true,
     requiredPermission: PERMISSIONS.EMPLOYEES_VIEW,
+  },
+  {
+    id: 'training',
+    labelKey: 'nav.trainingRecords',
+    icon: GraduationCap,
+    to: '/training',
+    status: 'available',
+    group: 'main',
+    matchNested: true,
+    excludeNested: ['/training/calendar'],
+    requiredAnyPermission: TRAINING_VIEW_PERMISSIONS,
+  },
+  {
+    id: 'training-calendar',
+    labelKey: 'nav.trainingCalendar',
+    icon: CalendarDays,
+    to: '/training/calendar',
+    status: 'available',
+    group: 'main',
+    requiredAnyPermission: TRAINING_VIEW_PERMISSIONS,
+  },
+  {
+    id: 'skills',
+    labelKey: 'nav.skillMatrix',
+    icon: Grid3x3,
+    to: '/skills',
+    status: 'available',
+    group: 'main',
+    matchNested: true,
+    requiredAnyPermission: COMPETENCY_VIEW_PERMISSIONS,
+  },
+  {
+    id: 'competencies',
+    labelKey: 'nav.competencyLibrary',
+    icon: Library,
+    to: '/competencies',
+    status: 'available',
+    group: 'main',
+    matchNested: true,
+    requiredAnyPermission: COMPETENCY_VIEW_PERMISSIONS,
+  },
+  {
+    id: 'notifications',
+    labelKey: 'nav.notifications',
+    icon: Bell,
+    to: '/notifications',
+    status: 'available',
+    group: 'main',
   },
   {
     id: 'users',
@@ -108,7 +175,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'my-learning', labelKey: 'nav.myLearning', icon: GraduationCap, status: 'planned', group: 'main' },
   { id: 'courses', labelKey: 'nav.courses', icon: BookOpen, status: 'planned', group: 'main' },
   { id: 'assessments', labelKey: 'nav.assessments', icon: ClipboardCheck, status: 'planned', group: 'main' },
-  { id: 'competencies', labelKey: 'nav.competencies', icon: Sparkles, status: 'planned', group: 'main' },
   { id: 'career', labelKey: 'nav.career', icon: Route, status: 'planned', group: 'main' },
   { id: 'certifications', labelKey: 'nav.certifications', icon: Award, status: 'planned', group: 'main' },
   { id: 'reports', labelKey: 'nav.reports', icon: ChartColumn, status: 'planned', group: 'main' },
@@ -117,6 +183,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
 /** Items the user may see (UI visibility only; see `requiredPermission`). */
 export function visibleNavItems(user: CurrentUser | null): NavItem[] {
   return NAV_ITEMS.filter(
-    (item) => item.requiredPermission === undefined || hasPermission(user, item.requiredPermission),
+    (item) =>
+      (item.requiredPermission === undefined || hasPermission(user, item.requiredPermission)) &&
+      (item.requiredAnyPermission === undefined || hasAnyPermission(user, item.requiredAnyPermission)),
   )
 }

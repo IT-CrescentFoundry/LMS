@@ -32,7 +32,12 @@ IMPORT_PERMISSIONS = (
 @pytest.fixture
 def mdb(test_engine: Engine, test_database_name: str) -> Iterator[MigrationDb]:
     db = MigrationDb(test_engine, test_database_name)
-    assert db.version() == alembic_head() == "0010", "expected a clean schema at 0010"
+    assert db.version() == alembic_head(), "expected a clean schema at head"
+    # Later revisions (0011+) hold no rows in a clean schema; step back to 0010 so these
+    # tests exercise revision 0010 exactly as before.
+    if db.version() != "0010":
+        db.migrate("downgrade", "0010")
+    assert db.version() == "0010"
     try:
         yield db
     finally:

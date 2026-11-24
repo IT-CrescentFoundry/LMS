@@ -2,6 +2,7 @@
 
 export type OrgSectionLabelKey =
   | 'org.nav.structure'
+  | 'org.nav.chart'
   | 'org.nav.unitTypes'
   | 'org.nav.locations'
   | 'org.nav.jobFamilies'
@@ -18,6 +19,7 @@ export interface OrgSection {
 
 export const ORG_SECTIONS: readonly OrgSection[] = [
   { path: '/organisation', labelKey: 'org.nav.structure' },
+  { path: '/organisation/chart', labelKey: 'org.nav.chart' },
   { path: '/organisation/unit-types', labelKey: 'org.nav.unitTypes' },
   { path: '/organisation/locations', labelKey: 'org.nav.locations' },
   { path: '/organisation/job-families', labelKey: 'org.nav.jobFamilies' },

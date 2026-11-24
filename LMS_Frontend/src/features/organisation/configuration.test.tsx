@@ -47,6 +47,8 @@ describe('Organisation section navigation', () => {
     const sections = await screen.findByRole('navigation', { name: 'Organisation sections' })
     expect(within(sections).getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Structure',
+      // First release: the organisation chart view joined the section list.
+      'Org chart',
       'Unit types',
       'Locations',
       'Job families',

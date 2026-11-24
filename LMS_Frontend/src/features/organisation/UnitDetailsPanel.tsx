@@ -1,12 +1,15 @@
-import { ArrowRightLeft, CircleOff, PencilLine, Plus, RotateCcw } from 'lucide-react'
+import { ArrowRightLeft, CircleOff, PencilLine, Plus, RotateCcw, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 
 import { LoadingState } from '../../components/LoadingState'
 import { SUPPORTED_LANGUAGES } from '../../i18n/languages'
 import { formatDate } from '../../lib/format'
 import { TRANSLATION_LOCALES, type OrgUnit } from '../../types/organisation'
 import { AdminErrorState } from '../admin/AdminParts'
+import { useHasPermission } from '../auth/authContext'
+import { PERMISSIONS } from '../auth/permissions'
 import { localName } from './names'
 import { RowButton, UnitStatusBadge } from './OrgParts'
 import { useOrgUnit, useUnitHistory } from './orgQueries'
@@ -43,6 +46,7 @@ export function UnitDetailsPanel({
   typeName,
 }: UnitDetailsPanelProps) {
   const { t, i18n } = useTranslation()
+  const canSeeEmployees = useHasPermission(PERMISSIONS.EMPLOYEES_VIEW)
   const language = i18n.resolvedLanguage
   const unitQuery = useOrgUnit(unitId, asOf)
   const historyQuery = useUnitHistory(unitId)
@@ -120,6 +124,16 @@ export function UnitDetailsPanel({
             </RowButton>
           )}
         </div>
+      ) : null}
+
+      {canSeeEmployees ? (
+        <Link
+          to={`/employees?unit=${encodeURIComponent(unit.public_id)}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline focus:ring-2 focus:ring-brand-500 focus:outline-none"
+        >
+          <Users aria-hidden="true" className="size-4" />
+          {t('org.structure.details.viewEmployees')}
+        </Link>
       ) : null}
 
       <dl className="grid gap-3 sm:grid-cols-2">

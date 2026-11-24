@@ -2,7 +2,28 @@
 
 Learning Management System for Crescent Foundry employees, covering induction, foundry process education, role-based learning paths, competency development, theoretical and practical assessment, certification, career development and AI-assisted learning. It is multilingual (English, Bengali, Hindi, Gujarati) and usable on phones, tablets, laptops and desktops.
 
-## Current status: Stage D (Excel import and controlled data onboarding) implemented and acceptance-reviewed, pending commit
+## Current status: first release (training register, skill matrix, calendar, notifications) implemented and technically verified — migration `0011` applied to `crescent_lms_dev`; business readiness outstanding
+
+**Software development and technical verification (as of 24 November 2026):**
+* Stages A, B, C (C1–C3) and D are complete.
+* Migration `0011` was applied to `crescent_lms_dev` on 23 November 2026, after a backup and an
+  isolated restore test both passed.
+* The database integrity checks passed: 148 foreign keys, 0 orphaned records.
+* The HR Admin application smoke test and the owner's manual browser verification passed.
+* The synthetic smoke-test account has been disabled.
+* The automated backend and frontend tests and the static checks passed.
+
+Record: [migration 0011 execution report](docs/database/verification/MIGRATION_0011_EXECUTION_REPORT_20261123.md).
+
+**Business readiness is still outstanding.** The following are **not** complete:
+* Production deployment.
+* Onboarding of real business data.
+* Stakeholder UAT.
+* Outlook/Teams integration.
+* Scheduling of the training-reminder job.
+* The open business decisions D-01…D-14 ([open decisions](docs/reference-analysis/05_SOURCE_TO_SYSTEM_MAPPING_AND_OPEN_DECISIONS.md)).
+
+Scope, access model and the migration approval procedure: [revised first-release scope](docs/product/REVISED_FIRST_RELEASE_SCOPE.md). Company reference analysis: [docs/reference-analysis](docs/reference-analysis/00_REFERENCE_FILE_INVENTORY.md).
 
 | Area | State |
 |---|---|
@@ -12,13 +33,14 @@ Learning Management System for Crescent Foundry employees, covering induction, f
 | Organisation structure and reference data API; Organisation Builder screens | Implemented (Stages C1, C2) |
 | Employee master API: employees, effective-dated assignments, functional roles (derived, manual, excluded), responsibilities, reporting lines, account links, separation with preview, history, data quality | Implemented (Stage C3) |
 | Employee screens: directory, profile tabs, create/edit, status, assignments, roles, responsibilities, reporting, separation, account linking, data quality | Implemented (Stage C3) — see [frontend README](LMS_Frontend/README.md#employee-area-stage-c3) |
-| Excel import framework and profile `employees` v1 (employees, assignments, reporting lines): file security, column mapping, dry-run validation, row decisions, reference-mapping review queue, explicit approval, one-transaction commit, provenance, history, error reports | Implemented and acceptance-reviewed (Stage D); **uncommitted** — see [import profiles §0](docs/database/EXCEL_IMPORT_PROFILES.md) and [API reference §10](docs/architecture/API_REFERENCE.md). Deferred: saved mapping profiles, editable exclusion list, header-row selection, second approver (Q-31), full retention rules (Q-21), organisation/reference-data worksheets (Q-47, Q-53) |
-| Import Control Room screens: overview and history, new import, column mapping, validation results, row decisions, approval, reference mappings | Implemented and acceptance-reviewed (Stage D); **uncommitted** — see [frontend README](LMS_Frontend/README.md#import-control-room-stage-d) |
+| Excel import framework and profile `employees` v1 (employees, assignments, reporting lines): file security, column mapping, dry-run validation, row decisions, reference-mapping review queue, explicit approval, one-transaction commit, provenance, history, error reports | Implemented and acceptance-reviewed (Stage D, complete; migration `0010` applied to `crescent_lms_dev`) — see [import profiles §0](docs/database/EXCEL_IMPORT_PROFILES.md) and [API reference §10](docs/architecture/API_REFERENCE.md). Deferred: saved mapping profiles, editable exclusion list, header-row selection, second approver (Q-31), full retention rules (Q-21), organisation/reference-data worksheets (Q-47, Q-53) |
+| Import Control Room screens: overview and history, new import, column mapping, validation results, row decisions, approval, reference mappings | Implemented and acceptance-reviewed (Stage D, complete) — see [frontend README](LMS_Frontend/README.md#import-control-room-stage-d) |
 | Language switching across en / bn / hi / gu | Implemented (Bengali, Hindi and Gujarati strings, including all C2, C3 and D screens, are machine drafts awaiting native-speaker review — register Q-58) |
 | Backend API: configuration, structured logging, error handling, CORS, liveness and readiness checks | Implemented |
 | Identity and access: user accounts, Argon2id passwords, server-side sessions, CSRF protection, login throttling, access roles and permissions, administration API | Implemented (Stage B) |
 | Append-only audit trail; Super Admin bootstrap through the CLI | Implemented (Stage B) |
-| MySQL with separate runtime, migration and test accounts; Alembic head `0010` (imports) in the repository | `crescent_lms_dev` is at `0009`. Migration `0010` is verified on the test database only; applying it to `crescent_lms_dev` is a separate, explicit decision |
+| MySQL with separate runtime, migration and test accounts; Alembic head `0011` (first release) in the repository | `crescent_lms_dev` is at `0011`: applied on 2026-11-23 after a backup and an isolated restore test both passed. The post-migration integrity checks passed (148 foreign keys, 0 orphaned records) — see the [execution report](docs/database/verification/MIGRATION_0011_EXECUTION_REPORT_20261123.md) |
+| **First release** (migration `0011`): training records register (catalogue, events with planned vs actual dates, sessions, participation with separate nomination / attendance / completion), training calendar (month/week/list; admin, team and own views), in-app notification centre with reminders and deduplication, competency library, configurable proficiency scales, skill-matrix templates with required level/headcount, assessments, gaps and staffing risk, organisation-unit Excel import (profile `organisation` v1), org chart | Implemented and tested on `crescent_lms_test`. Migration `0011` was applied to `crescent_lms_dev` on 2026-11-23 (see the [scope document §5](docs/product/REVISED_FIRST_RELEASE_SCOPE.md)). The HR Admin application smoke test and the owner's manual browser verification passed. Real business data is not yet loaded, and stakeholder UAT has not taken place. The training-reminder job (`app.jobs training-reminders`) is not yet scheduled. Outlook/Teams and HRMS are **not connected** (documented future integrations) |
 | Kiosk PIN sign-in, badge QR, OTP/SSO, organisation-scoped roles (C4) | **Not implemented** — open questions Q-07, Q-08, Q-09; Stage C4 |
 | Import profiles 2–6 (skill matrices, development plans, training calendars, attendance), learning, assessments, competency, certification, reports, AI | **Not implemented** — see the [roadmap](docs/LMS_IMPLEMENTATION_ROADMAP.md) |
 
@@ -147,7 +169,12 @@ cd LMS_Frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** and sign in. The Vite dev server proxies `/api` to the backend, so the browser talks to a single origin; that origin must be listed in `LMS_TRUSTED_ORIGINS`.
+Open **http://localhost:5173** and sign in.
+
+> **Running next to the PMS project.** PMS may use ports 8000/5173. Run the LMS on its own
+> ports instead: backend `--port 8010`, and the frontend with
+> `$env:LMS_DEV_API_PROXY_TARGET = "http://127.0.0.1:8010"; npx vite --port 4180 --strictPort`.
+> Add `http://localhost:4180,http://127.0.0.1:4180` to `LMS_TRUSTED_ORIGINS` in `LMS_Backend/.env`. The Vite dev server proxies `/api` to the backend, so the browser talks to a single origin; that origin must be listed in `LMS_TRUSTED_ORIGINS`.
 
 - Signed out, every page redirects to `/login`. After sign-in you return to the page you asked for.
 - Users holding `user_accounts.view` / `audit.view` see **Administration → User accounts / Audit log**.

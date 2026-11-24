@@ -9,6 +9,17 @@ The proposed schema for later stages is documented in
 
 from app.db.base import Base
 from app.models.audit import AuditEvent, AuditOutcome
+from app.models.competency import (
+    Competency,
+    CompetencyAssessment,
+    CompetencyBandRequirement,
+    CompetencyLevelDescriptor,
+    ProficiencyLevel,
+    ProficiencyScale,
+    SkillMatrix,
+    SkillMatrixItem,
+    SkillMatrixMember,
+)
 from app.models.employees import (
     AssignmentSource,
     AssignmentType,
@@ -41,6 +52,7 @@ from app.models.imports import (
     ImportValueMapping,
     RecordProvenance,
 )
+from app.models.notifications import Notification, NotificationPreference
 from app.models.occupation import (
     Designation,
     DesignationFunctionalRole,
@@ -64,6 +76,12 @@ from app.models.organisation import (
     OrgUnitTypeTranslation,
     ParentRuleMode,
 )
+from app.models.training import (
+    TrainingEvent,
+    TrainingParticipation,
+    TrainingProgramme,
+    TrainingSession,
+)
 
 __all__ = [
     "AccessPermission",
@@ -75,6 +93,10 @@ __all__ = [
     "AuditEvent",
     "AuditOutcome",
     "Base",
+    "Competency",
+    "CompetencyAssessment",
+    "CompetencyBandRequirement",
+    "CompetencyLevelDescriptor",
     "Designation",
     "DesignationFunctionalRole",
     "DesignationTranslation",
@@ -97,6 +119,8 @@ __all__ = [
     "JobLevel",
     "Location",
     "LoginThrottle",
+    "Notification",
+    "NotificationPreference",
     "OrgUnit",
     "OrgUnitHierarchy",
     "OrgUnitTranslation",
@@ -104,13 +128,22 @@ __all__ = [
     "OrgUnitTypeRule",
     "OrgUnitTypeTranslation",
     "ParentRuleMode",
+    "ProficiencyLevel",
+    "ProficiencyScale",
     "RecordProvenance",
     "ReportingRelationship",
     "ReportingRelationshipType",
     "ReportingRelationshipTypeTranslation",
     "Responsibility",
     "ResponsibilityTranslation",
+    "SkillMatrix",
+    "SkillMatrixItem",
+    "SkillMatrixMember",
     "ThrottleScope",
+    "TrainingEvent",
+    "TrainingParticipation",
+    "TrainingProgramme",
+    "TrainingSession",
     "UserAccessRole",
     "UserAccount",
     "UserSession",

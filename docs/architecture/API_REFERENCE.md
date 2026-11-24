@@ -384,6 +384,40 @@ ValueMappingOut  { public_id, kind, source_text, normalised_text, status, target
 
 Workbook cell values appear only in a job's staged rows and issues (mapped columns only); audit metadata records counts, codes and file hashes, never cell values. Audit event types added in Stage D (target type `import_job` or `import_value_mapping`): `import.job.uploaded`, `import.upload.rejected`, `import.job.mapping_set`, `import.job.validated`, `import.row.decided`, `import.job.committed`, `import.job.commit_failed`, `import.job.cancelled`, `import.job.expired`, `import.job.validation_abandoned`, `import.mapping.approved`, `import.mapping.rejected`, `import.mapping.superseded`. Records written by a commit are also audited with their usual C3 event types (for example `employee.created`) under the same request ID; corrections, assignments and reporting lines carry the import job and source row as their reason.
 
+## 10a. First release — training, competency, notifications (migration `0011`)
+
+All endpoints below answer **503 `schema_migration_pending`** until migration `0011` is applied. State-changing calls need the CSRF header; every change is audited (event types `training_programme.*`, `training_event.*`, `training_session.*`, `training_participation.*`, `proficiency_scale.*`, `competency.*`, `skill_matrix.*`, `competency_assessment.recorded`). Limited users (team / own scope) receive **404** for records outside their scope.
+
+| Method & path | Permission | Purpose |
+|---|---|---|
+| `GET /training/summary` | any of `training.records.view`, `team.learning.view`, `learning.own.view`, `training_events.manage` | Register counts (recorded facts only) for the caller's scope |
+| `GET/POST /training/programmes`, `PATCH /training/programmes/{id}` | view / `training_events.manage` | Training catalogue |
+| `GET /training/events` | view | Register; filters `q, status, timeframe (past/ongoing/upcoming/unscheduled/cancelled), unit, include_sub_units, location, category, calendar_label, date_from, date_to, limit, offset` |
+| `POST /training/events`, `PATCH /training/events/{id}` | `training_events.manage` | Record / edit an event (initial status planned, scheduled or completed) |
+| `GET /training/events/{id}` | view (scoped) | Event with sessions, counts, derived timeframe and manhours |
+| `POST /training/events/{id}/status` | `training_events.manage` | `planned→scheduled/postponed/cancelled`, `scheduled→planned/completed/postponed/cancelled`, `postponed→planned/scheduled/cancelled`; reason required for cancel/postpone; actual dates (not future) for completed |
+| `POST /training/events/{id}/sessions`, `PATCH …/sessions/{sid}` | `training_events.manage` | Dated sessions (reschedule, change venue, cancel) — participants are notified when the event is scheduled |
+| `GET /training/events/{id}/participants` | view (scoped) | Participation records |
+| `POST /training/events/{id}/participants` | `training_events.manage` | Nominate / confirm employees. A separated employee is accepted only for an event that started on or before their last working day (historical records); otherwise `409 employee_separated`. Unrecorded employment status is flagged, never inferred |
+| `PATCH /training/events/{id}/participants/{pid}` | `training_events.manage` | Nomination, attendance (+minutes), completion, assessment result, certificate number, remarks |
+| `GET /training/participations` | view (scoped) | Employee training records; `mine, employee, q, unit, designation, attendance, completion` |
+| `GET /training/calendar?start&end` | view (scoped) | Calendar items (sessions, or event windows; month-only plans flagged); `mine`, unit/location/status/label filters; ≤ 100 days |
+| `GET /training/calendar-labels` | view (scoped) | Calendar labels of the events the caller may see |
+| `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all` | signed in (own only) | Notification centre; listing first creates due reminders for the caller (idempotent) |
+| `GET/PUT /notifications/preferences` | signed in | Opt out of optional types; schedule changes and cancellations are mandatory |
+| `GET /notifications/channels` | signed in | In-app connected; Outlook and Teams **not connected** |
+| `POST /notifications/reminders/run` | `training_events.manage` | Create due reminders for everyone (idempotent). Scheduled generation uses the CLI job `python -m app.jobs training-reminders` (no session needed; see the backend README) |
+| `GET/POST /competency/scales`, `PATCH /competency/scales/{id}` | any of `competency.view/manage`, `team.learning.view`, `learning.own.view` / `competency.manage` | Proficiency scales (levels in use cannot be removed or reordered) |
+| `GET/POST /competency/competencies`, `GET/PATCH /competency/competencies/{id}`, `GET /competency/categories` | view / `competency.manage` | Competency library; list filter `status` (`draft`/`approved`). New entries are always created as `draft` |
+| `POST /competency/competencies/{id}/status` | `competency.manage` | `{version, status: approved \| draft, reason?}` — approve a draft, or return it to draft (reason required); audited `competency.status_changed` |
+| `PUT /competency/competencies/{id}/band-requirements` | `competency.manage` | `{version, items: [{band_code, band_label?, required_level?}]}` — replaces the grade-band required levels (codes stored verbatim in upper case, en dash allowed; level must be in the competency's scale; empty = pending); audited `competency.band_requirements_changed` with before/after; assessments unchanged |
+| `GET/POST /competency/matrices`, `PATCH /competency/matrices/{id}`, `PUT …/{id}/items`, `POST …/{id}/members` | view / `competency.manage` | Skill-matrix templates, requirements (required level, required headcount), members |
+| `GET /competency/matrices/{id}/grid` | view (scoped) | Required vs assessed per employee and competency, gap, plan flag; per-item headcounts and staffing risk for full-access users |
+| `POST /competency/assessments` | `competency.assess` | Append-only assessed level |
+| `GET /competency/employees/{id}/assessments`, `GET /competency/employees/{id}/skills`, `GET /competency/my-skills` | view (scoped) | Assessment history and an employee's matrices |
+
+Import profile `organisation` v1 (`POST /imports?profile=organisation`) uses the Stage D endpoints unchanged (existing units with different values are `update` rows, applied only with `apply_updates: true` at commit — see [import profiles §11.1a](../database/EXCEL_IMPORT_PROFILES.md)); it needs `imports.organisation.run` (upload/map/validate) and `imports.organisation.commit` + `organisation.manage` (commit).
+
 ## 11. Not exposed over HTTP
 
 Super Admin creation, grant and revocation exist only as CLI commands (`python -m app.cli …`, ADR-047). Kiosk PIN sign-in, badge tokens and certificate verification (Q-08, Q-09; Stage J), and organisation- and reporting-line-scoped access (Stage C4) are not implemented. Import profiles 2–6 (skill matrices, development plans, training calendars, safety calendars, attendance and historical training records) belong to later stages; the Stage D framework accepts new profiles without API changes.

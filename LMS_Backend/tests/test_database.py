@@ -68,15 +68,35 @@ STAGE_D_TABLES = {
 }
 
 
+# First release (migration 0011, docs/product/REVISED_FIRST_RELEASE_SCOPE.md): the
+# training register, competency library / skill matrices and notifications were brought
+# forward from Stages E/F. The former guard "no competency tables before Stage F" is
+# replaced by this explicit list.
+FIRST_RELEASE_TABLES = {
+    "training_programme",
+    "training_event",
+    "training_session",
+    "training_participation",
+    "proficiency_scale",
+    "proficiency_level",
+    "competency",
+    "competency_level_descriptor",
+    "competency_band_requirement",
+    "skill_matrix",
+    "skill_matrix_item",
+    "skill_matrix_member",
+    "competency_assessment",
+    "notification",
+    "notification_preference",
+}
+
+
 def test_models_define_only_the_tables_of_completed_stages() -> None:
     import app.models  # noqa: F401
 
     assert set(Base.metadata.tables) == (
-        STAGE_B_TABLES | STAGE_C1_TABLES | STAGE_C3_TABLES | STAGE_D_TABLES
+        STAGE_B_TABLES | STAGE_C1_TABLES | STAGE_C3_TABLES | STAGE_D_TABLES | FIRST_RELEASE_TABLES
     )
-    # Competency and proficiency data belong to Stage F, not to C3.
-    for fragment in ("competenc", "proficien"):
-        assert not any(fragment in name for name in Base.metadata.tables), fragment
 
 
 def test_naming_convention_produces_deterministic_names() -> None:

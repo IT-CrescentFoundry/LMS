@@ -9,6 +9,8 @@ from collections.abc import Callable, Iterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.cookies import cleared_session_cookie_header
@@ -135,4 +137,78 @@ def require_permission(*permissions: str) -> Callable[..., AuthContext]:
         return auth
 
     dependency.required_permissions = permissions  # type: ignore[attr-defined]
+    return dependency
+
+
+def require_any_permission(*permissions: str) -> Callable[..., AuthContext]:
+    """Dependency factory: the user must hold *at least one* of ``permissions``.
+
+    Used where the data returned depends on which permission is held (global, team or
+    own records); the service narrows the result accordingly.
+    """
+
+    def dependency(
+        request: Request, auth: AuthContextDep, db: DbSessionDep, meta: RequestMetaDep
+    ) -> AuthContext:
+        if auth.user.password_must_change:
+            raise AppError(
+                403,
+                "password_change_required",
+                "You must change your password before continuing.",
+            )
+        if not any(code in auth.permissions for code in permissions):
+            route = request.scope.get("route")
+            record_audit_event(
+                db,
+                event_type=AuditEventType.AUTHORIZATION_DENIED,
+                outcome=AuditOutcome.DENIED,
+                meta=meta,
+                actor_user_id=auth.user.id,
+                metadata={
+                    "required_any": sorted(permissions),
+                    "method": request.method,
+                    "route": getattr(route, "path", request.url.path),
+                },
+            )
+            db.commit()
+            raise AppError(403, "forbidden", "You do not have permission to perform this action.")
+        return auth
+
+    dependency.required_permissions = permissions  # type: ignore[attr-defined]
+    return dependency
+
+
+def require_schema(revision: str) -> Callable[..., None]:
+    """Dependency factory: the database must be at ``revision`` or later.
+
+    Feature tables are created by reviewed migrations that an operator applies
+    explicitly. Until then the feature's endpoints answer 503
+    ``schema_migration_pending`` instead of failing on a missing table. A successful
+    check is remembered for the life of the app; a failed one is re-checked on every
+    request, so the feature works as soon as the migration is applied.
+    """
+    required = int(revision)
+
+    def dependency(request: Request, db: DbSessionDep, _auth: AuthContextDep) -> None:
+        # Authentication is resolved first: anonymous callers get 401, not feature status.
+        verified: set[str] | None = getattr(request.app.state, "verified_schema", None)
+        if verified is None:
+            verified = set()
+            request.app.state.verified_schema = verified
+        if revision in verified:
+            return
+        try:
+            current = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        except SQLAlchemyError:
+            db.rollback()
+            current = None
+        if current is None or not str(current).isdigit() or int(current) < required:
+            raise AppError(
+                503,
+                "schema_migration_pending",
+                f"This feature needs database migration {revision}, which has not been "
+                "applied yet. An administrator must approve and apply it.",
+            )
+        verified.add(revision)
+
     return dependency

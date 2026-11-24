@@ -223,6 +223,18 @@ Validation layers, in order:
 
 Change classification: `new`, `update` (existing employee with differing correctable fields: name, display name, language, work email, joining date, external reference — applied only when the approver chooses *apply updates*, otherwise counted as skipped), `unchanged`, `error`, `skipped` (explicit decision; blank and repeated header rows are counted separately and not staged).
 
+### 11.1a Implemented: `organisation` version 1 (first release, migration `0011`)
+
+Sheet **Organisation Units** (aliases: Org Units, Units, Organisation Structure); one row per unit:
+`Unit Code`* · `Unit Name`* · `Unit Type`* (type code or name) · `Parent Unit Code` · `Location Code` (code or name) · `Short Name` · `Effective From` · `External Reference`.
+
+- New codes are **created** through the same service as the Organisation screens (unique codes, sibling-name rule, parent-type rules, active types/locations, hierarchy lock). Parents may be existing units or rows anywhere in the file (ordered automatically).
+- An existing code with identical values is `unchanged` (re-uploading a file is harmless).
+- *(Changed in the 2026-11-23 review; previously a blocking `existing_unit_differs` error.)* An existing code whose supplied values differ is an **`update`** row. The preview lists every difference (`from → to`; a parent change also shows its effective date). Updates are applied **only** when the approver ticks "apply the listed corrections" at commit; otherwise those rows are skipped and the units stay unchanged. Name, type, location, short name and external reference changes are audited corrections (`org_unit.corrected`, reason `Excel import <job>`); a different parent is an effective-dated move (`org_unit.moved`) from the commit's business date, so the previous placement stays in the unit's history. Blank optional cells never clear recorded values; start dates are never changed; an import never closes, reopens or deletes a unit (closing obsolete units is done on the Organisation screens, with an effective date and reason). The commit is still one transaction, refused if the data changed after the preview (`import_records_changed`).
+- Other blocking issues: `unit_type_unknown`, `location_unknown`, `parent_not_found`, `parent_cycle_in_file`, `parent_row_failed`, `duplicate_in_file`, and any domain rule code. Advisory parent-rule findings are warnings.
+- The filled company template (sections A–G in one sheet) cannot be uploaded as-is: an administrator copies the agreed units into the Organisation Units sheet after decisions D-02/D-03 ([open decisions](../reference-analysis/05_SOURCE_TO_SYSTEM_MAPPING_AND_OPEN_DECISIONS.md)).
+- Permissions: `imports.organisation.run`; commit needs `imports.organisation.commit` **and** `organisation.manage`.
+
 ### 11.2 Not yet implemented
 
 The remaining worksheets below (unit types, locations, organisation units, job families, designations, positions, functional roles, responsibilities, designation–role mappings, employee roles and responsibilities) are **not part of Stage D**. Organisation and reference data are maintained on the Organisation Builder screens; importing them depends on Q-47 and Q-53. Positions are not implemented at all.

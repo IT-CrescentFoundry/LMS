@@ -311,10 +311,66 @@ EMPLOYEES_V1 = ProfileSpec(
     options={"date_order": "DMY"},
 )
 
+# Profile ``organisation`` v1 (first release; closes the unit part of Q-47): new
+# organisation units with their type, parent and location. New codes are created; a row
+# whose code already exists is compared and either unchanged or a listed UPDATE that is
+# applied only when the approver explicitly approves updates (rename/type/location as
+# audited corrections, new parent as an effective-dated move). Never closes or deletes a
+# unit. Parents may be existing units or units earlier in the file.
+ORGANISATION_V1 = ProfileSpec(
+    code="organisation",
+    version=1,
+    commit_order=("units",),
+    sections=(
+        SectionSpec(
+            kind="units",
+            sheet_aliases=("Organisation Units", "Org Units", "Units", "Organisation Structure"),
+            natural_key=("unit_code",),
+            fields=(
+                FieldSpec(
+                    "unit_code", FieldType.TEXT, True, ("Unit Code", "Org Unit Code", "Code"), 50
+                ),
+                FieldSpec("unit_name", FieldType.TEXT, True, ("Unit Name", "Name"), 200),
+                FieldSpec(
+                    "unit_type",
+                    FieldType.TEXT,
+                    True,
+                    ("Unit Type", "Unit Type Code", "Type"),
+                    150,
+                ),
+                FieldSpec(
+                    "parent_code",
+                    FieldType.TEXT,
+                    False,
+                    ("Parent Unit Code", "Parent Code", "Parent"),
+                    50,
+                ),
+                FieldSpec("location", FieldType.TEXT, False, ("Location Code", "Location"), 200),
+                FieldSpec("short_name", FieldType.TEXT, False, ("Short Name",), 50),
+                FieldSpec(
+                    "effective_from",
+                    FieldType.DATE,
+                    False,
+                    ("Effective From", "Start Date", "From"),
+                ),
+                FieldSpec(
+                    "external_ref",
+                    FieldType.TEXT,
+                    False,
+                    ("External Reference", "HRMS ID", "External Ref"),
+                    100,
+                ),
+            ),
+        ),
+    ),
+    options={"date_order": "DMY"},
+)
+
 PROFILES: dict[tuple[str, int], ProfileSpec] = {
-    (EMPLOYEES_V1.code, EMPLOYEES_V1.version): EMPLOYEES_V1
+    (EMPLOYEES_V1.code, EMPLOYEES_V1.version): EMPLOYEES_V1,
+    (ORGANISATION_V1.code, ORGANISATION_V1.version): ORGANISATION_V1,
 }
-CURRENT_VERSION: dict[str, int] = {"employees": 1}
+CURRENT_VERSION: dict[str, int] = {"employees": 1, "organisation": 1}
 
 
 def get_profile(code: str, version: int | None = None) -> ProfileSpec | None:

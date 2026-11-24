@@ -91,7 +91,8 @@ XLSX_TYPES = {
 XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # Domain permissions a profile's commit writes with (no privilege escalation via imports).
 COMMIT_DOMAIN_PERMISSIONS = {
-    "employees": (Permission.EMPLOYEES_MANAGE, Permission.REPORTING_LINES_MANAGE)
+    "employees": (Permission.EMPLOYEES_MANAGE, Permission.REPORTING_LINES_MANAGE),
+    "organisation": (Permission.ORGANISATION_MANAGE,),
 }
 
 

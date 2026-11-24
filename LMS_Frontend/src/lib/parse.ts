@@ -100,3 +100,18 @@ export function expectOneOf<T extends string>(
   }
   return value as T
 }
+
+export function expectNullableNumber(record: Record<string, unknown>, key: string): number | null {
+  const value = record[key]
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`${key}: expected a number or null`)
+  }
+  return value
+}
+
+export function expectArray(record: Record<string, unknown>, key: string): unknown[] {
+  const value = record[key]
+  if (!Array.isArray(value)) throw new TypeError(`${key}: expected a list`)
+  return value
+}

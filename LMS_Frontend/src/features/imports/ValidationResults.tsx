@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { primaryButtonClassName, secondaryButtonClassName } from '../../components/formStyles'
 import { LoadingState } from '../../components/LoadingState'
 import { Modal } from '../../components/Modal'
+import { formatDate } from '../../lib/format'
 import { importService, saveDownload } from '../../services/importService'
 import {
   ISSUE_SEVERITIES,
@@ -218,7 +219,7 @@ function RowCard({
   onDecide: (decision: RowDecision) => void
   onUndo: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const sectionLabel = useSectionLabel()
   const fieldLabel = useFieldLabel()
   const issueMessage = useIssueMessage()
@@ -265,6 +266,7 @@ function RowCard({
             {Object.entries(row.changes).map(([field, change]) => (
               <li key={field}>
                 {t('imp.results.change', { field: fieldLabel(field), from: text(change.from), to: text(change.to) })}
+                {change.effective_date ? ` (${t('imp.results.effectiveFrom', { date: formatDate(change.effective_date, i18n.resolvedLanguage) })})` : null}
               </li>
             ))}
           </ul>

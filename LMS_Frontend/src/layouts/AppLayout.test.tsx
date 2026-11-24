@@ -37,12 +37,23 @@ describe('AppLayout', () => {
     renderApp()
 
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
-    expect(within(nav).getAllByRole('link')).toHaveLength(1)
+    // First release: an employee (learning.own.view) also sees Training Records, Training
+    // Calendar, Skill Matrix, Competency Library and Notifications next to the Dashboard.
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Dashboard',
+      'Training Records',
+      'Training Calendar',
+      'Skill Matrix',
+      'Competency Library',
+      'Notifications',
+    ])
 
     const plannedGroup = within(nav).getByRole('list', { name: 'Coming soon' })
     const plannedItems = within(plannedGroup).getAllByRole('listitem')
-    // Organisation became a real page in Stage C2 (and needs organisation.view).
-    expect(plannedItems).toHaveLength(7)
+    // Organisation became a real page in Stage C2 (and needs organisation.view); the
+    // planned "Competencies" item became the Competency Library in the first release.
+    expect(plannedItems).toHaveLength(6)
+    expect(within(plannedGroup).queryByText('Competencies')).not.toBeInTheDocument()
     expect(within(plannedGroup).queryByText('Organisation')).not.toBeInTheDocument()
     for (const item of plannedItems) {
       expect(item).toHaveAttribute('aria-disabled', 'true')
